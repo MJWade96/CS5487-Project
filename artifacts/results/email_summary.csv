@@ -1,0 +1,2 @@
+trial,model,mnist_accuracy,challenge_accuracy,challenge_reference_knn_mean
+trial_1,knn_1,0.9135,0.66,0.683

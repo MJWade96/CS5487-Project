@@ -1,0 +1,2 @@
+model,mnist_accuracy_mean,mnist_accuracy_std,challenge_accuracy_mean,challenge_accuracy_std,mnist_macro_f1_mean,challenge_macro_f1_mean
+knn_1,0.9135,,0.66,,0.9130310118292048,0.6528978918339172

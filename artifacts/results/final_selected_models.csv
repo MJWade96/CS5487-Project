@@ -1,0 +1,2 @@
+trial,model,selected_preprocessing,best_cv_accuracy,best_params,mnist_accuracy,mnist_macro_f1,mnist_macro_recall,challenge_accuracy,challenge_macro_f1,challenge_macro_recall,model_selection_runtime_seconds
+trial_1,knn_1,raw,0.9219999999999999,{},0.9135,0.9130310118292048,0.9135000000000002,0.66,0.6528978918339172,0.66,5.01137739999831
