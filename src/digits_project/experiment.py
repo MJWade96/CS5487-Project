@@ -35,6 +35,119 @@ class SearchOutcome:
     runtime_seconds: float
 
 
+CV_ROW_COLUMNS = [
+    "trial",
+    "model",
+    "preprocessing",
+    "best_cv_accuracy",
+    "best_params",
+    "runtime_seconds",
+]
+
+FINAL_ROW_COLUMNS = [
+    "trial",
+    "model",
+    "selected_preprocessing",
+    "best_cv_accuracy",
+    "best_params",
+    "mnist_accuracy",
+    "mnist_macro_f1",
+    "mnist_macro_recall",
+    "challenge_accuracy",
+    "challenge_macro_f1",
+    "challenge_macro_recall",
+    "model_selection_runtime_seconds",
+]
+
+
+@dataclass
+class ExperimentProgress:
+    """Persisted run state used to resume interrupted Colab executions."""
+
+    paths: config.ProjectPaths
+    cv_frame: pd.DataFrame
+    final_frame: pd.DataFrame
+
+    @classmethod
+    def load(cls, paths: config.ProjectPaths) -> "ExperimentProgress":
+        ensure_output_dirs(paths)
+        cv_frame = _sort_cv_frame(_load_optional_result_frame(paths.results_dir / "cv_leaderboard.csv", CV_ROW_COLUMNS))
+        final_frame = _sort_final_frame(
+            _load_optional_result_frame(paths.results_dir / "final_selected_models.csv", FINAL_ROW_COLUMNS)
+        )
+        return cls(paths=paths, cv_frame=cv_frame, final_frame=final_frame)
+
+    def completed_model_pairs(self) -> set[tuple[str, str]]:
+        if self.final_frame.empty:
+            return set()
+        return set(zip(self.final_frame["trial"], self.final_frame["model"]))
+
+    def has_completed_model(self, trial_name: str, model_name: str) -> bool:
+        return (trial_name, model_name) in self.completed_model_pairs()
+
+    def load_saved_outcomes(self, trial_name: str, model_name: str) -> dict[str, SearchOutcome]:
+        if self.cv_frame.empty:
+            return {}
+
+        saved_rows = self.cv_frame[
+            (self.cv_frame["trial"] == trial_name) & (self.cv_frame["model"] == model_name)
+        ]
+        outcomes: dict[str, SearchOutcome] = {}
+        for row in saved_rows.itertuples(index=False):
+            checkpoint_path = _search_checkpoint_path(self.paths, trial_name, model_name, row.preprocessing)
+            if not checkpoint_path.exists():
+                print(
+                    (
+                        f"    checkpoint metadata exists for {row.preprocessing}, "
+                        "but the saved estimator is missing; rerunning it."
+                    ),
+                    flush=True,
+                )
+                continue
+            outcomes[row.preprocessing] = SearchOutcome(
+                preprocessor_name=row.preprocessing,
+                best_estimator=joblib.load(checkpoint_path),
+                best_params=_deserialize_params(row.best_params),
+                best_cv_accuracy=float(row.best_cv_accuracy),
+                runtime_seconds=float(row.runtime_seconds),
+            )
+        return outcomes
+
+    def record_cv_outcome(self, trial_name: str, model_name: str, outcome: SearchOutcome) -> Path:
+        checkpoint_path = _search_checkpoint_path(self.paths, trial_name, model_name, outcome.preprocessor_name)
+        # Save the estimator before the CSV row so resume never points at a missing artifact.
+        joblib.dump(outcome.best_estimator, checkpoint_path)
+        self.cv_frame = _sort_cv_frame(
+            _upsert_result_row(
+                self.cv_frame,
+                {
+                    "trial": trial_name,
+                    "model": model_name,
+                    "preprocessing": outcome.preprocessor_name,
+                    "best_cv_accuracy": outcome.best_cv_accuracy,
+                    "best_params": _serialize_params(outcome.best_params),
+                    "runtime_seconds": outcome.runtime_seconds,
+                },
+                key_columns=["trial", "model", "preprocessing"],
+                columns=CV_ROW_COLUMNS,
+            )
+        )
+        save_dataframe(self.cv_frame, self.paths.results_dir / "cv_leaderboard.csv")
+        return checkpoint_path
+
+    def record_final_row(self, final_row: dict[str, object]) -> None:
+        self.final_frame = _sort_final_frame(
+            _upsert_result_row(
+                self.final_frame,
+                final_row,
+                key_columns=["trial", "model"],
+                columns=FINAL_ROW_COLUMNS,
+            )
+        )
+        summary_frame, email_frame = _build_summary_frames(self.final_frame)
+        _save_result_tables(self.cv_frame, self.final_frame, summary_frame, email_frame, self.paths)
+
+
 def _json_safe(value):
     if isinstance(value, tuple):
         return list(value)
@@ -46,6 +159,59 @@ def _json_safe(value):
 def _serialize_params(params: dict[str, object]) -> str:
     safe_params = {key: _json_safe(value) for key, value in params.items()}
     return json.dumps(safe_params, sort_keys=True)
+
+
+def _deserialize_params(serialized_params: str) -> dict[str, object]:
+    if not serialized_params:
+        return {}
+    return json.loads(serialized_params)
+
+
+def _selected_model_path(paths: config.ProjectPaths, trial_name: str, model_name: str) -> Path:
+    return paths.models_dir / f"{trial_name}_{model_name}.joblib"
+
+
+def _search_checkpoint_path(
+    paths: config.ProjectPaths,
+    trial_name: str,
+    model_name: str,
+    preprocessor_name: str,
+) -> Path:
+    return paths.models_dir / f"{trial_name}_{model_name}_{preprocessor_name}_search.joblib"
+
+
+def _load_optional_result_frame(path: Path, columns: list[str]) -> pd.DataFrame:
+    if not path.exists():
+        return pd.DataFrame(columns=columns)
+
+    frame = pd.read_csv(path)
+    missing = [column for column in columns if column not in frame.columns]
+    if missing:
+        raise ValueError(f"Result file {path} is missing required columns: {missing}")
+    return frame[columns].copy()
+
+
+def _upsert_result_row(
+    frame: pd.DataFrame,
+    row: dict[str, object],
+    key_columns: list[str],
+    columns: list[str],
+) -> pd.DataFrame:
+    # Reuse one upsert helper so checkpoint writes stay consistent across resume tables.
+    updated = pd.concat([frame, pd.DataFrame([row], columns=columns)], ignore_index=True)
+    return updated.drop_duplicates(subset=key_columns, keep="last")
+
+
+def _sort_cv_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    if frame.empty:
+        return frame.reindex(columns=CV_ROW_COLUMNS)
+    return frame.sort_values(["trial", "model", "best_cv_accuracy"], ascending=[True, True, False]).reset_index(drop=True)
+
+
+def _sort_final_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    if frame.empty:
+        return frame.reindex(columns=FINAL_ROW_COLUMNS)
+    return frame.sort_values(["model", "trial"]).reset_index(drop=True)
 
 
 def _run_grid_search(X_train, y_train, pipeline, param_grid: dict[str, list[object]]) -> GridSearchCV:
@@ -219,8 +385,20 @@ def run_project_experiments(
     model_specs = _select_model_specs(selected_model_names)
     _print_runtime_summary(trials, model_specs)
 
-    cv_rows: list[dict[str, object]] = []
-    final_rows: list[dict[str, object]] = []
+    progress = ExperimentProgress.load(config.PATHS)
+    target_pairs = {(trial.name, model_spec.name) for trial in trials for model_spec in model_specs}
+    completed_pairs = progress.completed_model_pairs().intersection(target_pairs)
+    if completed_pairs:
+        print(
+            (
+                f"Resume state: {len(completed_pairs)} / {len(target_pairs)} selected trial/model "
+                "checkpoints are already complete."
+            ),
+            flush=True,
+        )
+
+    total_model_pairs = len(trials) * len(model_specs)
+    model_pair_index = 0
 
     for trial in trials:
         X_train = dataset.X[trial.train_indices]
@@ -231,12 +409,43 @@ def run_project_experiments(
         print(f"=== {trial.name}: train={X_train.shape}, test={X_test.shape} ===", flush=True)
 
         for model_spec in model_specs:
-            print(f"[{trial.name}] selecting model: {model_spec.name}", flush=True)
-            winning_outcome: SearchOutcome | None = None
-            model_total_runtime = 0.0
+            model_pair_index += 1
+            model_prefix = f"[{model_pair_index}/{total_model_pairs}] {trial.name} / {model_spec.name}"
+            if progress.has_completed_model(trial.name, model_spec.name):
+                print(f"{model_prefix} already completed, skipping saved checkpoint.", flush=True)
+                continue
 
-            for preprocessor_name in model_spec.preprocessors:
-                print(f"    CV with preprocessing: {preprocessor_name}", flush=True)
+            saved_outcomes = progress.load_saved_outcomes(trial.name, model_spec.name)
+            if saved_outcomes:
+                print(
+                    (
+                        f"{model_prefix} resuming with {len(saved_outcomes)} / "
+                        f"{len(model_spec.preprocessors)} preprocessing checkpoints."
+                    ),
+                    flush=True,
+                )
+            else:
+                print(f"{model_prefix} selecting model.", flush=True)
+
+            winning_outcome: SearchOutcome | None = None
+            model_total_runtime = sum(outcome.runtime_seconds for outcome in saved_outcomes.values())
+
+            for preprocessor_index, preprocessor_name in enumerate(model_spec.preprocessors, start=1):
+                progress_prefix = f"    [{preprocessor_index}/{len(model_spec.preprocessors)}]"
+                if preprocessor_name in saved_outcomes:
+                    outcome = saved_outcomes[preprocessor_name]
+                    print(
+                        (
+                            f"{progress_prefix} reusing checkpoint: {preprocessor_name} "
+                            f"(cv_acc={outcome.best_cv_accuracy:.4f}, runtime={outcome.runtime_seconds:.1f}s)"
+                        ),
+                        flush=True,
+                    )
+                    if winning_outcome is None or outcome.best_cv_accuracy > winning_outcome.best_cv_accuracy:
+                        winning_outcome = outcome
+                    continue
+
+                print(f"{progress_prefix} starting CV with preprocessing: {preprocessor_name}", flush=True)
                 pipeline = build_pipeline(preprocessor_name, model_spec.estimator_builder())
 
                 start_time = time.perf_counter()
@@ -251,16 +460,19 @@ def run_project_experiments(
                     best_cv_accuracy=search.best_score_,
                     runtime_seconds=runtime_seconds,
                 )
-                cv_rows.append(
-                    {
-                        "trial": trial.name,
-                        "model": model_spec.name,
-                        "preprocessing": preprocessor_name,
-                        "best_cv_accuracy": search.best_score_,
-                        "best_params": _serialize_params(search.best_params_),
-                        "runtime_seconds": runtime_seconds,
-                    }
+                checkpoint_path = progress.record_cv_outcome(
+                    trial_name=trial.name,
+                    model_name=model_spec.name,
+                    outcome=outcome,
                 )
+                print(
+                    (
+                        f"{progress_prefix} finished {preprocessor_name} in {runtime_seconds:.1f}s: "
+                        f"cv_acc={search.best_score_:.4f}, best_params={search.best_params_}"
+                    ),
+                    flush=True,
+                )
+                print(f"{progress_prefix} saved resume checkpoint: {checkpoint_path.name}", flush=True)
 
                 if winning_outcome is None or outcome.best_cv_accuracy > winning_outcome.best_cv_accuracy:
                     winning_outcome = outcome
@@ -268,7 +480,7 @@ def run_project_experiments(
             if winning_outcome is None:
                 raise RuntimeError(f"No winning configuration found for {trial.name} / {model_spec.name}.")
 
-            model_path = config.PATHS.models_dir / f"{trial.name}_{model_spec.name}.joblib"
+            model_path = _selected_model_path(config.PATHS, trial.name, model_spec.name)
             joblib.dump(winning_outcome.best_estimator, model_path)
 
             mnist_predictions = winning_outcome.best_estimator.predict(X_test)
@@ -294,33 +506,34 @@ def run_project_experiments(
                 confusion=challenge_metrics["confusion_matrix"],
             )
 
-            final_rows.append(
-                {
-                    "trial": trial.name,
-                    "model": model_spec.name,
-                    "selected_preprocessing": winning_outcome.preprocessor_name,
-                    "best_cv_accuracy": winning_outcome.best_cv_accuracy,
-                    "best_params": _serialize_params(winning_outcome.best_params),
-                    "mnist_accuracy": mnist_metrics["accuracy"],
-                    "mnist_macro_f1": mnist_metrics["macro_f1"],
-                    "mnist_macro_recall": mnist_metrics["macro_recall"],
-                    "challenge_accuracy": challenge_metrics["accuracy"],
-                    "challenge_macro_f1": challenge_metrics["macro_f1"],
-                    "challenge_macro_recall": challenge_metrics["macro_recall"],
-                    "model_selection_runtime_seconds": model_total_runtime,
-                }
-            )
+            final_row = {
+                "trial": trial.name,
+                "model": model_spec.name,
+                "selected_preprocessing": winning_outcome.preprocessor_name,
+                "best_cv_accuracy": winning_outcome.best_cv_accuracy,
+                "best_params": _serialize_params(winning_outcome.best_params),
+                "mnist_accuracy": mnist_metrics["accuracy"],
+                "mnist_macro_f1": mnist_metrics["macro_f1"],
+                "mnist_macro_recall": mnist_metrics["macro_recall"],
+                "challenge_accuracy": challenge_metrics["accuracy"],
+                "challenge_macro_f1": challenge_metrics["macro_f1"],
+                "challenge_macro_recall": challenge_metrics["macro_recall"],
+                "model_selection_runtime_seconds": model_total_runtime,
+            }
+            progress.record_final_row(final_row)
             print(
                 (
                     f"    selected {winning_outcome.preprocessor_name}: "
                     f"mnist_acc={mnist_metrics['accuracy']:.4f}, "
-                    f"challenge_acc={challenge_metrics['accuracy']:.4f}"
+                    f"challenge_acc={challenge_metrics['accuracy']:.4f}, "
+                    f"model_runtime={model_total_runtime:.1f}s"
                 ),
                 flush=True,
             )
+            print(f"    refreshed run tables under {config.PATHS.results_dir}", flush=True)
 
-    cv_frame = pd.DataFrame(cv_rows).sort_values(["trial", "model", "best_cv_accuracy"], ascending=[True, True, False])
-    final_frame = pd.DataFrame(final_rows).sort_values(["model", "trial"])
+    cv_frame = progress.cv_frame
+    final_frame = progress.final_frame
     summary_frame, email_frame = _build_summary_frames(final_frame)
     _save_result_tables(cv_frame, final_frame, summary_frame, email_frame, config.PATHS)
 

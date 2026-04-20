@@ -2,37 +2,39 @@
 
 This guide is for running the project in Google Colab without changing the evaluation protocol or weakening model performance.
 
-## 1. Prepare the project folder in Google Drive
+## 1. Prepare the Colab sources and persistent output folder
 
-Upload the whole project folder to Google Drive. The folder pointed to by PROJECT_ROOT must contain at least:
+You no longer need to manually copy the full source tree into Google Drive.
 
-- requirements.txt
-- src/
-- digits4000_txt/
-- challenge/
-- digits_project_colab.ipynb
+The notebook can:
 
-Recommended layout in Drive:
+- clone or update the code from GitHub under `/content`
+- keep `artifacts/` persistent in Google Drive
+
+Recommended layout:
 
 ```text
+/content/
+  CS5487-Project/                  <- GitHub checkout created by the notebook
+
 MyDrive/
   CS5487 Course Project Code/
-    requirements.txt
-    src/
-    digits4000_txt/
-    challenge/
-    digits_project_colab.ipynb
+    artifacts/                     <- created or reused by the notebook
 ```
 
 ## 2. Open the notebook in Colab
 
-Open [digits_project_colab.ipynb](digits_project_colab.ipynb) from Google Drive in Colab.
+Open [digits_project_colab.ipynb](digits_project_colab.ipynb) in Colab. The notebook can live in Drive or be opened from GitHub.
 
 At the top of the notebook, keep or adjust these variables:
 
 ```python
 USE_GOOGLE_DRIVE = True
-PROJECT_ROOT = "/content/drive/MyDrive/CS5487 Course Project Code"
+SYNC_PROJECT_FROM_GITHUB = True
+GITHUB_REPO_URL = "https://github.com/MJWade96/CS5487-Project"
+GITHUB_REF = None
+PROJECT_ROOT = "/content/CS5487-Project"
+ARTIFACTS_ROOT = "/content/drive/MyDrive/CS5487 Course Project Code"
 GRID_SEARCH_JOBS = 1
 BATCH_PRESET = None
 RUN_EXPERIMENTS = True
@@ -45,7 +47,11 @@ COMBINE_RUN_NAMES = None
 Meaning of each variable:
 
 - USE_GOOGLE_DRIVE: mount Google Drive before running
-- PROJECT_ROOT: the folder containing the full project
+- SYNC_PROJECT_FROM_GITHUB: clone or update the code checkout before running
+- GITHUB_REPO_URL: the GitHub repository used for the Colab source checkout
+- GITHUB_REF: optional branch, tag, or commit to checkout after syncing
+- PROJECT_ROOT: the local Colab checkout path for the GitHub source tree
+- ARTIFACTS_ROOT: optional persistent location whose `artifacts/` folder is linked into the checkout
 - GRID_SEARCH_JOBS: how many CPU workers GridSearchCV uses inside one model search
 - BATCH_PRESET: apply a tested batch configuration for common resume workflows
 - RUN_EXPERIMENTS: choose whether this notebook launch should start a new training run
@@ -54,7 +60,7 @@ Meaning of each variable:
 - RUN_NAME: write one batch into its own artifacts/runs/<name>/ directory
 - COMBINE_RUN_NAMES: list of batch names to merge back into artifacts/results/
 
-If your project folder is not directly under MyDrive, only change PROJECT_ROOT.
+If you want outputs to persist in Drive, keep `USE_GOOGLE_DRIVE = True` and point `ARTIFACTS_ROOT` at a Drive folder.
 
 ## 3. Run the notebook in order
 
@@ -62,13 +68,15 @@ Run the cells from top to bottom.
 
 The notebook does the following:
 
-1. Mount Google Drive and validate PROJECT_ROOT.
-2. Install dependencies from requirements.txt.
-3. Add src/ to Python path and configure runtime settings.
-4. Check dataset shapes and official trial names.
-5. Inspect current saved outputs and print completed versus pending `trial/model` pairs.
-6. Run the configured experiment batch only when `RUN_EXPERIMENTS = True`.
-7. Optionally combine finished batch runs back into canonical files under artifacts/results/.
+1. Mount Google Drive when requested.
+2. Clone or fast-forward the GitHub source checkout under `PROJECT_ROOT`.
+3. Link `PROJECT_ROOT/artifacts` to `ARTIFACTS_ROOT/artifacts` when `ARTIFACTS_ROOT` is set.
+4. Install dependencies from `requirements.txt`.
+5. Add `src/` to Python path and configure runtime settings.
+6. Check dataset shapes and official trial names.
+7. Inspect current saved outputs and print completed versus pending `trial/model` pairs.
+8. Run the configured experiment batch only when `RUN_EXPERIMENTS = True`.
+9. Optionally combine finished batch runs back into canonical files under `artifacts/results/`.
 
 Do not skip the data sanity cell. It is the fastest way to catch a wrong folder path.
 
@@ -146,11 +154,17 @@ If a run stops midway, completed batch folders remain useful. This is why batchi
 
 ## 6. Common problems
 
+### PROJECT_ROOT already exists but is not a git checkout
+
+Cause: `PROJECT_ROOT` points to an old manually copied folder instead of a Git checkout.
+
+Fix: point `PROJECT_ROOT` to a clean folder such as `/content/CS5487-Project`, or remove the old non-git copy first.
+
 ### FileNotFoundError for PROJECT_ROOT
 
-Cause: PROJECT_ROOT does not point to the folder that contains requirements.txt and the dataset folders.
+Cause: GitHub sync is disabled and `PROJECT_ROOT` does not point to a valid checkout, or the checkout is incomplete.
 
-Fix: correct PROJECT_ROOT and rerun from the first code cell.
+Fix: enable `SYNC_PROJECT_FROM_GITHUB`, or correct `PROJECT_ROOT` and rerun from the first code cell.
 
 ### Colab session uses too much CPU or memory
 

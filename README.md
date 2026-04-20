@@ -31,10 +31,14 @@ The primary workflow is now the notebook [digits_project_colab.ipynb](f:\课程\
 
 Use the notebook when local CPU and memory are limited:
 
-1. Upload the whole project folder to Google Drive, or clone it under `/content`.
-2. Open `digits_project_colab.ipynb` in Colab.
+1. Open `digits_project_colab.ipynb` in Colab. You can keep the notebook in Drive or open it from GitHub.
+2. Keep the GitHub sync settings and output location at the top of the notebook up to date.
 3. Set the notebook variables at the top:
+   - `SYNC_PROJECT_FROM_GITHUB`
+   - `GITHUB_REPO_URL`
+   - `GITHUB_REF`
    - `PROJECT_ROOT`
+   - `ARTIFACTS_ROOT`
    - `GRID_SEARCH_JOBS` (start with `1`, raise to `2` only if the runtime stays stable)
    - `BATCH_PRESET`
    - `RUN_EXPERIMENTS`
@@ -42,13 +46,16 @@ Use the notebook when local CPU and memory are limited:
    - `SELECTED_MODEL_NAMES`
    - `RUN_NAME`
    - `COMBINE_RUN_NAMES`
-4. Run the cells in order. The notebook now prints completed and pending `trial/model` pairs before starting a new run, so interrupted work can be resumed without guessing what is missing.
+4. Run the cells in order. The notebook clones or fast-forwards the GitHub checkout under `PROJECT_ROOT`, then links `PROJECT_ROOT/artifacts` to `ARTIFACTS_ROOT/artifacts` when `ARTIFACTS_ROOT` is set.
+5. The notebook prints completed and pending `trial/model` pairs before starting a new run, so interrupted work can be resumed without guessing what is missing.
 5. If you only want to rebuild canonical summary files from finished batch folders, set `RUN_EXPERIMENTS = False` and fill `COMBINE_RUN_NAMES` with the completed run names.
 
 For a step-by-step Colab workflow and batching guidance, see [COLAB_RUN_GUIDE.md](COLAB_RUN_GUIDE.md).
 
 The notebook imports the Python package instead of duplicating the experiment
-logic, so the protocol stays identical between local and Colab runs.
+logic, so the protocol stays identical between local and Colab runs. The code
+checkout can now come directly from GitHub, which removes the need to manually
+sync the full source tree into Google Drive.
 
 ## Local Fallback
 
@@ -88,6 +95,8 @@ Outputs are written under `artifacts/`:
 - `artifacts/models/`: fitted trial-specific pipelines saved with `joblib`
 
 When Colab batching is enabled with `RUN_NAME`, each batch writes to `artifacts/runs/<run_name>/...`. After all batches finish, the notebook can combine them back into the canonical files under `artifacts/results/`.
+
+When `ARTIFACTS_ROOT` points to Google Drive, those same `artifacts/` folders are persisted there even though the source checkout lives under `/content`.
 
 ## Verification
 
