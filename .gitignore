@@ -6,5 +6,11 @@ __pycache__/
 .pytest_cache/
 .DS_Store
 .tmp_pdf_text/
+.learnings/
+.vscode/
+dist/
+node_modules/
 artifacts/models/
+artifacts/runs/
+artifacts from google drive/
 .ipynb_checkpoints/

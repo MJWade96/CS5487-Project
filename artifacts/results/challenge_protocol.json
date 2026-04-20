@@ -1,4 +1,8 @@
 {
   "challenge_reference_accuracy": 0.683,
-  "public_material_can_include_challenge": false
+  "public_material_can_include_challenge": false,
+  "source_runs": [
+    "batch_heavy",
+    "batch_light"
+  ]
 }

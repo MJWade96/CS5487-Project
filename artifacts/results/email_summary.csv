@@ -1,2 +1,13 @@
 trial,model,mnist_accuracy,challenge_accuracy,challenge_reference_knn_mean
 trial_1,knn_1,0.9135,0.66,0.683
+trial_2,knn_1,0.9185,0.7066666666666667,0.683
+trial_1,linear_svm_ova,0.8765,0.54,0.683
+trial_2,linear_svm_ova,0.858,0.5466666666666666,0.683
+trial_1,logistic_regression_ova,0.8905,0.6266666666666667,0.683
+trial_2,logistic_regression_ova,0.8785,0.6266666666666667,0.683
+trial_1,mlp,0.922,0.6933333333333334,0.683
+trial_2,mlp,0.907,0.6266666666666667,0.683
+trial_1,random_forest,0.929,0.6866666666666666,0.683
+trial_2,random_forest,0.922,0.72,0.683
+trial_1,rbf_svm_ova,0.948,0.72,0.683
+trial_2,rbf_svm_ova,0.946,0.78,0.683

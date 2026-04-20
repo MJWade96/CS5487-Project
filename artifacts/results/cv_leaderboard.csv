@@ -1,7 +1,61 @@
 trial,model,preprocessing,best_cv_accuracy,best_params,runtime_seconds
-trial_1,knn_1,raw,0.9219999999999999,{},2.536841599998297
-trial_1,knn_1,minmax,0.9219999999999999,{},0.177981799999543
-trial_1,knn_1,pca_50,0.8885,{},0.4801073999988148
-trial_1,knn_1,pca_100,0.8835000000000001,{},0.6574709999986226
-trial_1,knn_1,pca_150,0.8734999999999999,{},0.9096792000018468
-trial_1,knn_1,zscore,0.8634999999999999,{},0.24929640000118525
+trial_1,knn_1,raw,0.922,{},3.039778539999816
+trial_1,knn_1,minmax,0.922,{},0.3843357270000069
+trial_1,knn_1,pca_50,0.8885,{},1.1137402199999542
+trial_1,knn_1,pca_100,0.8835000000000001,{},1.049630691999937
+trial_1,knn_1,pca_150,0.8734999999999999,{},1.3463398990002131
+trial_1,knn_1,zscore,0.8634999999999999,{},0.4585340730000098
+trial_1,linear_svm_ova,pca_50,0.8780000000000001,"{""classifier__estimator__C"": 0.1}",20.44760216200029
+trial_1,linear_svm_ova,pca_100,0.8734999999999999,"{""classifier__estimator__C"": 0.01}",167.28637273000004
+trial_1,linear_svm_ova,pca_150,0.8705,"{""classifier__estimator__C"": 0.01}",397.3777208029997
+trial_1,linear_svm_ova,zscore,0.8445,"{""classifier__estimator__C"": 0.01}",3627.292753077
+trial_1,linear_svm_ova,raw,0.8285,"{""classifier__estimator__C"": 0.01}",15.185914409999896
+trial_1,logistic_regression_ova,minmax,0.8885,"{""classifier__estimator__C"": 0.1}",12.355667692999988
+trial_1,logistic_regression_ova,pca_50,0.882,"{""classifier__estimator__C"": 1.0}",8.956268338999962
+trial_1,logistic_regression_ova,pca_100,0.8755,"{""classifier__estimator__C"": 1.0}",19.196216049000213
+trial_1,logistic_regression_ova,pca_150,0.8720000000000001,"{""classifier__estimator__C"": 0.1}",27.842934599999808
+trial_1,logistic_regression_ova,zscore,0.8545,"{""classifier__estimator__C"": 0.1}",135.41054761899977
+trial_1,logistic_regression_ova,raw,0.8435,"{""classifier__estimator__C"": 0.1}",19.96461257200008
+trial_1,mlp,minmax,0.921,"{""classifier__alpha"": 0.001, ""classifier__hidden_layer_sizes"": [256], ""classifier__learning_rate_init"": 0.01}",80.43003494799996
+trial_1,mlp,pca_50,0.913,"{""classifier__alpha"": 0.0001, ""classifier__hidden_layer_sizes"": [256], ""classifier__learning_rate_init"": 0.001}",49.99939547100075
+trial_1,mlp,pca_100,0.9005000000000001,"{""classifier__alpha"": 0.001, ""classifier__hidden_layer_sizes"": [128], ""classifier__learning_rate_init"": 0.01}",49.10044132800067
+trial_1,mlp,zscore,0.8965,"{""classifier__alpha"": 0.001, ""classifier__hidden_layer_sizes"": [128], ""classifier__learning_rate_init"": 0.001}",74.3304381830003
+trial_1,mlp,pca_150,0.8885,"{""classifier__alpha"": 0.0001, ""classifier__hidden_layer_sizes"": [256], ""classifier__learning_rate_init"": 0.001}",56.7899277810011
+trial_1,random_forest,raw,0.9205,"{""classifier__max_depth"": null, ""classifier__max_features"": ""sqrt"", ""classifier__n_estimators"": 400}",738.1794421389986
+trial_1,random_forest,pca_100,0.898,"{""classifier__max_depth"": null, ""classifier__max_features"": ""sqrt"", ""classifier__n_estimators"": 400}",704.2454155020005
+trial_1,random_forest,pca_50,0.8935000000000001,"{""classifier__max_depth"": null, ""classifier__max_features"": ""sqrt"", ""classifier__n_estimators"": 400}",406.8865130880004
+trial_1,rbf_svm_ova,raw,0.9485,"{""classifier__estimator__C"": 5.0, ""classifier__estimator__gamma"": ""scale""}",459.4718344130015
+trial_1,rbf_svm_ova,pca_50,0.9285,"{""classifier__estimator__C"": 10.0, ""classifier__estimator__gamma"": 0.001}",56.373937964001016
+trial_1,rbf_svm_ova,pca_100,0.9270000000000002,"{""classifier__estimator__C"": 5.0, ""classifier__estimator__gamma"": ""scale""}",77.72971187799885
+trial_1,rbf_svm_ova,pca_150,0.923,"{""classifier__estimator__C"": 10.0, ""classifier__estimator__gamma"": 0.001}",111.12387489600042
+trial_1,rbf_svm_ova,zscore,0.914,"{""classifier__estimator__C"": 10.0, ""classifier__estimator__gamma"": ""scale""}",284.0842935210003
+trial_2,knn_1,raw,0.92,{},0.359747673000129
+trial_2,knn_1,minmax,0.92,{},0.6129155979997449
+trial_2,knn_1,pca_50,0.8939999999999999,{},0.9908346399997754
+trial_2,knn_1,pca_100,0.8859999999999999,{},1.0360260160005057
+trial_2,knn_1,pca_150,0.8815,{},1.3434001569994507
+trial_2,knn_1,zscore,0.8654999999999999,{},0.4826694040002621
+trial_2,linear_svm_ova,pca_100,0.8815,"{""classifier__estimator__C"": 0.1}",187.00120568500097
+trial_2,linear_svm_ova,pca_150,0.8714999999999999,"{""classifier__estimator__C"": 0.01}",386.3446047420002
+trial_2,linear_svm_ova,pca_50,0.8710000000000001,"{""classifier__estimator__C"": 0.1}",14.992735032999915
+trial_2,linear_svm_ova,zscore,0.85,"{""classifier__estimator__C"": 0.01}",3598.848047860999
+trial_2,linear_svm_ova,raw,0.8425,"{""classifier__estimator__C"": 0.1}",11.936138447000303
+trial_2,logistic_regression_ova,minmax,0.892,"{""classifier__estimator__C"": 0.1}",12.175841504000346
+trial_2,logistic_regression_ova,pca_100,0.8845000000000001,"{""classifier__estimator__C"": 1.0}",18.17575434599985
+trial_2,logistic_regression_ova,pca_150,0.8724999999999999,"{""classifier__estimator__C"": 0.1}",26.55462431800061
+trial_2,logistic_regression_ova,pca_50,0.8699999999999999,"{""classifier__estimator__C"": 10.0}",8.64144590900014
+trial_2,logistic_regression_ova,zscore,0.851,"{""classifier__estimator__C"": 0.1}",130.3046452210001
+trial_2,logistic_regression_ova,raw,0.85,"{""classifier__estimator__C"": 0.1}",18.04529185299998
+trial_2,mlp,minmax,0.9215,"{""classifier__alpha"": 0.0001, ""classifier__hidden_layer_sizes"": [256], ""classifier__learning_rate_init"": 0.01}",84.45858159600175
+trial_2,mlp,pca_100,0.8985,"{""classifier__alpha"": 0.0001, ""classifier__hidden_layer_sizes"": [256], ""classifier__learning_rate_init"": 0.01}",52.473440893998486
+trial_2,mlp,pca_50,0.8975,"{""classifier__alpha"": 0.0001, ""classifier__hidden_layer_sizes"": [256], ""classifier__learning_rate_init"": 0.001}",48.57586250199893
+trial_2,mlp,zscore,0.8960000000000001,"{""classifier__alpha"": 0.0001, ""classifier__hidden_layer_sizes"": [256], ""classifier__learning_rate_init"": 0.001}",76.2021012969999
+trial_2,mlp,pca_150,0.8950000000000001,"{""classifier__alpha"": 0.001, ""classifier__hidden_layer_sizes"": [128], ""classifier__learning_rate_init"": 0.01}",60.39418928300074
+trial_2,random_forest,raw,0.9215,"{""classifier__max_depth"": null, ""classifier__max_features"": ""sqrt"", ""classifier__n_estimators"": 400}",719.5120775930009
+trial_2,random_forest,pca_50,0.9004999999999999,"{""classifier__max_depth"": null, ""classifier__max_features"": ""sqrt"", ""classifier__n_estimators"": 200}",399.1972639680025
+trial_2,random_forest,pca_100,0.8985,"{""classifier__max_depth"": 20, ""classifier__max_features"": ""sqrt"", ""classifier__n_estimators"": 400}",698.2091132809983
+trial_2,rbf_svm_ova,raw,0.941,"{""classifier__estimator__C"": 5.0, ""classifier__estimator__gamma"": ""scale""}",458.3824936839992
+trial_2,rbf_svm_ova,pca_100,0.925,"{""classifier__estimator__C"": 10.0, ""classifier__estimator__gamma"": ""scale""}",77.49210727199898
+trial_2,rbf_svm_ova,pca_50,0.921,"{""classifier__estimator__C"": 5.0, ""classifier__estimator__gamma"": ""scale""}",52.33211899399976
+trial_2,rbf_svm_ova,pca_150,0.9195,"{""classifier__estimator__C"": 10.0, ""classifier__estimator__gamma"": ""scale""}",111.1353550849999
+trial_2,rbf_svm_ova,zscore,0.91,"{""classifier__estimator__C"": 10.0, ""classifier__estimator__gamma"": ""scale""}",280.7524413430001
