@@ -7,10 +7,10 @@ __pycache__/
 .DS_Store
 .tmp_pdf_text/
 .learnings/
+.worktrees/
 .vscode/
 dist/
 node_modules/
-artifacts/models/
-artifacts/runs/
 artifacts from google drive/
 .ipynb_checkpoints/
+artifacts/

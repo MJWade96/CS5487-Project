@@ -38,6 +38,18 @@ class DummySearch:
         self.best_estimator_ = estimator
         self.best_params_ = best_params
         self.best_score_ = best_score
+        self.cv_results_ = {
+            "params": [best_params],
+            "rank_test_score": [1],
+            "mean_test_score": [best_score],
+            "std_test_score": [0.0],
+            "mean_fit_time": [0.01],
+            "std_fit_time": [0.0],
+            "mean_score_time": [0.0],
+            "std_score_time": [0.0],
+        }
+        for key, value in best_params.items():
+            self.cv_results_[f"param_{key}"] = [value]
 
 
 def _build_dummy_estimator() -> DummyEstimator:
@@ -47,6 +59,58 @@ def _build_dummy_estimator() -> DummyEstimator:
 class ExperimentResumeTests(unittest.TestCase):
     def tearDown(self) -> None:
         reset_project_config()
+
+    def test_record_cv_outcome_replaces_stale_detailed_rows_for_same_block(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            batch_paths = project_config.ProjectPaths(temp_root, run_name="resume_batch")
+            progress = experiment.ExperimentProgress.load(batch_paths)
+
+            first_outcome = experiment.SearchOutcome(
+                preprocessor_name="zscore",
+                best_estimator=DummyEstimator(1),
+                best_params={"alpha": 1.0},
+                best_cv_accuracy=0.90,
+                runtime_seconds=1.0,
+                cv_results_frame=pd.DataFrame(
+                    [
+                        {
+                            "trial": "trial_1",
+                            "model": "resume_model",
+                            "preprocessing": "zscore",
+                            "params_json": '{"alpha": 1.0}',
+                            "rank_test_score": 1,
+                            "mean_test_score": 0.90,
+                        }
+                    ]
+                ),
+            )
+            progress.record_cv_outcome("trial_1", "resume_model", first_outcome)
+
+            second_outcome = experiment.SearchOutcome(
+                preprocessor_name="zscore",
+                best_estimator=DummyEstimator(1),
+                best_params={"alpha": 2.0},
+                best_cv_accuracy=0.91,
+                runtime_seconds=1.1,
+                cv_results_frame=pd.DataFrame(
+                    [
+                        {
+                            "trial": "trial_1",
+                            "model": "resume_model",
+                            "preprocessing": "zscore",
+                            "params_json": '{"alpha": 2.0}',
+                            "rank_test_score": 1,
+                            "mean_test_score": 0.91,
+                        }
+                    ]
+                ),
+            )
+            progress.record_cv_outcome("trial_1", "resume_model", second_outcome)
+
+            detailed_frame = pd.read_csv(batch_paths.results_dir / "cv_results_detailed.csv")
+            self.assertEqual(len(detailed_frame), 1)
+            self.assertEqual(detailed_frame.iloc[0]["params_json"], '{"alpha": 2.0}')
 
     def test_run_project_experiments_resumes_partial_preprocessing_and_skips_completed_model(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -89,6 +153,18 @@ class ExperimentResumeTests(unittest.TestCase):
             saved_cv_frame = pd.read_csv(batch_paths.results_dir / "cv_leaderboard.csv")
             self.assertEqual(set(saved_cv_frame["preprocessing"]), {"raw", "zscore"})
             self.assertTrue((batch_paths.models_dir / "trial_1_resume_model.joblib").exists())
+
+            detailed_cv_frame = pd.read_csv(batch_paths.results_dir / "cv_results_detailed.csv")
+            self.assertEqual(len(detailed_cv_frame), 1)
+            self.assertEqual(set(detailed_cv_frame[["trial", "model", "preprocessing"]].iloc[0]), {"trial_1", "resume_model", "zscore"})
+
+            prediction_frame = pd.read_csv(batch_paths.predictions_dir / "trial_1_resume_model_mnist_test.csv")
+            self.assertEqual(
+                list(prediction_frame.columns),
+                ["sample_index", "sample_index_1based", "y_true", "y_pred", "is_correct"],
+            )
+            self.assertEqual(prediction_frame["sample_index"].tolist(), [2, 3])
+            self.assertTrue((batch_paths.case_examples_dir / "trial_1_resume_model_mnist_test_cases.csv").exists())
 
             second_run_calls: list[str] = []
 
@@ -141,15 +217,16 @@ class ExperimentResumeTests(unittest.TestCase):
                 with patch.object(experiment, "build_pipeline", side_effect=lambda preprocessor_name, estimator: preprocessor_name):
                     with patch.object(experiment, "_run_grid_search", side_effect=run_grid_search):
                         with patch.object(experiment, "compute_classification_metrics", side_effect=self._compute_metrics):
-                            with patch.object(experiment, "_save_selected_outputs"):
+                            with patch.object(experiment, "save_confusion_matrix_plot"):
                                 with patch.object(experiment, "save_accuracy_comparison_plot"):
-                                    return experiment.run_project_experiments(
-                                        root_dir=temp_root,
-                                        grid_search_jobs=1,
-                                        selected_trial_names=["trial_1"],
-                                        selected_model_names=["resume_model"],
-                                        run_name="resume_batch",
-                                    )
+                                    with patch.object(experiment, "save_accuracy_runtime_tradeoff_plot"):
+                                        return experiment.run_project_experiments(
+                                            root_dir=temp_root,
+                                            grid_search_jobs=1,
+                                            selected_trial_names=["trial_1"],
+                                            selected_model_names=["resume_model"],
+                                            run_name="resume_batch",
+                                        )
 
 
 if __name__ == "__main__":

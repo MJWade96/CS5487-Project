@@ -48,7 +48,8 @@ Use the notebook when local CPU and memory are limited:
    - `COMBINE_RUN_NAMES`
 4. Run the cells in order. The notebook clones or fast-forwards the GitHub checkout under `PROJECT_ROOT`, then links `PROJECT_ROOT/artifacts` to `ARTIFACTS_ROOT/artifacts` when `ARTIFACTS_ROOT` is set.
 5. The notebook prints completed and pending `trial/model` pairs before starting a new run, so interrupted work can be resumed without guessing what is missing.
-5. If you only want to rebuild canonical summary files from finished batch folders, set `RUN_EXPERIMENTS = False` and fill `COMBINE_RUN_NAMES` with the completed run names.
+6. If you only want to rebuild canonical results from finished batch folders, set `RUN_EXPERIMENTS = False` and fill `COMBINE_RUN_NAMES` with the completed run names.
+7. The notebook now audits canonical artifacts after the status cell, including trade-off summaries, case-example CSVs, and whether the selected batch runs are missing `cv_results_detailed.csv`.
 
 For a step-by-step Colab workflow and batching guidance, see [COLAB_RUN_GUIDE.md](COLAB_RUN_GUIDE.md).
 
@@ -85,16 +86,22 @@ can be resumed and combined more safely there than in one long local process.
 Outputs are written under `artifacts/`:
 
 - `artifacts/results/cv_leaderboard.csv`: best CV score for each trial/model/preprocessing combination
+- `artifacts/results/cv_results_detailed.csv`: full `GridSearchCV` rows for sensitivity analysis when the source batch was run with the updated pipeline
 - `artifacts/results/final_selected_models.csv`: per-trial selected model results on official test and challenge digits
 - `artifacts/results/summary_by_model.csv`: mean and standard deviation by model across the two trials
 - `artifacts/results/email_summary.csv`: compact table for the instructor email request
+- `artifacts/results/model_tradeoff_summary.csv`: accuracy, runtime, preprocessing stability, and robustness summary by model
+- `artifacts/results/preprocessing_tradeoff_summary.csv`: per-model preprocessing comparison for CV accuracy and search cost
 - `artifacts/results/challenge_protocol.json`: reminder that challenge results are private to the email/report workflow
 - `artifacts/results/predictions/`: prediction tables for official test and challenge digits
 - `artifacts/results/per_class/`: per-class precision/recall/F1 tables
-- `artifacts/figures/`: confusion matrices and summary bar chart
+- `artifacts/results/case_examples/`: representative official-test success/failure case tables for report writing
+- `artifacts/figures/`: confusion matrices, the summary bar chart, and the official-test accuracy/runtime trade-off plot
 - `artifacts/models/`: fitted trial-specific pipelines saved with `joblib`
 
 When Colab batching is enabled with `RUN_NAME`, each batch writes to `artifacts/runs/<run_name>/...`. After all batches finish, the notebook can combine them back into the canonical files under `artifacts/results/`.
+
+When older batch folders do not contain `cv_results_detailed.csv`, the combine step still rebuilds canonical predictions, per-class tables, case-example CSVs, figures, and selected models from the saved batch outputs. However, parameter-sensitivity analysis still requires rerunning those source batches with the updated pipeline so the full `GridSearchCV` rows can be persisted.
 
 When `ARTIFACTS_ROOT` points to Google Drive, those same `artifacts/` folders are persisted there even though the source checkout lives under `/content`.
 

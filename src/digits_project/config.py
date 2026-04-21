@@ -52,6 +52,7 @@ class ProjectPaths:
         self.models_dir = self.run_dir / "models"
         self.predictions_dir = self.results_dir / "predictions"
         self.per_class_dir = self.results_dir / "per_class"
+        self.case_examples_dir = self.results_dir / "case_examples"
 
         self.digits_vec_path = self.digits_dir / "digits4000_digits_vec.txt"
         self.digits_labels_path = self.digits_dir / "digits4000_digits_labels.txt"
