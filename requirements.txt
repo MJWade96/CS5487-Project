@@ -1,7 +1,15 @@
+# Core experiment and notebook runtime
 numpy
 pandas
 scikit-learn
 matplotlib
 seaborn
 joblib
+ipykernel
+
+# Report export utilities
+python-docx
+python-pptx
+reportlab
+Pillow
 

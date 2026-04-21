@@ -25,33 +25,52 @@ Install or refresh dependencies with:
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
+If you want to open the notebook locally in VS Code or Jupyter, register the
+kernel once:
+
+```powershell
+.\.venv\Scripts\python.exe -m ipykernel install --user --name cs5487-digits --display-name "CS5487 Digits"
+```
+
 ## Run In Google Colab
 
-The primary workflow is now the notebook [digits_project_colab.ipynb](f:\课程\Semester%20B\CS5487%20Machine%20Learning：Principle%20&%20Practice\作业\CS5487%20Course%20Project\Code\digits_project_colab.ipynb).
+The primary workflow is now the notebook [digits_project_colab.ipynb](digits_project_colab.ipynb).
 
-Use the notebook when local CPU and memory are limited:
+Use the notebook when local CPU and memory are limited.
+
+### Get the project folder and artifacts folder
 
 1. Open `digits_project_colab.ipynb` in Colab. You can keep the notebook in Drive or open it from GitHub.
-2. Keep the GitHub sync settings and output location at the top of the notebook up to date.
-3. Set the notebook variables at the top:
-   - `SYNC_PROJECT_FROM_GITHUB`
-   - `GITHUB_REPO_URL`
-   - `GITHUB_REF`
-   - `PROJECT_ROOT`
-   - `ARTIFACTS_ROOT`
-   - `GRID_SEARCH_JOBS` (start with `1`, raise to `2` only if the runtime stays stable)
-   - `BATCH_PRESET`
-   - `RUN_EXPERIMENTS`
-   - `SELECTED_TRIAL_NAMES`
-   - `SELECTED_MODEL_NAMES`
-   - `RUN_NAME`
-   - `COMBINE_RUN_NAMES`
-4. Run the cells in order. The notebook clones or fast-forwards the GitHub checkout under `PROJECT_ROOT`, then links `PROJECT_ROOT/artifacts` to `ARTIFACTS_ROOT/artifacts` when `ARTIFACTS_ROOT` is set.
-5. The notebook prints completed and pending `trial/model` pairs before starting a new run, so interrupted work can be resumed without guessing what is missing.
-6. If you only want to rebuild canonical results from finished batch folders, set `RUN_EXPERIMENTS = False` and fill `COMBINE_RUN_NAMES` with the completed run names.
-7. The notebook now audits canonical artifacts after the status cell, including trade-off summaries, case-example CSVs, and whether the selected batch runs are missing `cv_results_detailed.csv`.
+2. Keep `SYNC_PROJECT_FROM_GITHUB = True` and keep `PROJECT_ROOT = "/content/CS5487-Project"` unless you have a strong reason to change it.
+3. Run Cells 1 to 4 in order. The setup cells clone or fast-forward the repository into `/content/CS5487-Project` and install the Python dependencies.
+4. Open Colab's left-side Files panel and click refresh. You should now see the project folder `/content/CS5487-Project/`.
+5. Decide where you want the `artifacts/` folder to live:
+   - Persistent Google Drive: set `USE_GOOGLE_DRIVE = True` and keep `ARTIFACTS_ROOT = "/content/drive/MyDrive/CS5487 Course Project Code"`. The setup cell mounts Drive and creates or reuses `/content/drive/MyDrive/CS5487 Course Project Code/artifacts/`.
+   - Runtime-local only: keep `USE_GOOGLE_DRIVE = False`. The setup cell creates or reuses `/content/CS5487-runtime-storage/artifacts/`.
+6. If you keep artifacts in runtime-local storage, leave `EXPORT_RUNTIME_ARTIFACTS_ARCHIVE = True`. The final run cell exports `/content/exports/artifacts_snapshot*.zip`, which you should download before the Colab runtime resets.
 
-For a step-by-step Colab workflow and batching guidance, see [COLAB_RUN_GUIDE.md](COLAB_RUN_GUIDE.md).
+### Notebook defaults
+
+The checked-in notebook currently defaults to:
+
+- `USE_GOOGLE_DRIVE = False`
+- `SYNC_PROJECT_FROM_GITHUB = True`
+- `PROJECT_ROOT = "/content/CS5487-Project"`
+- `RUNTIME_ARTIFACTS_ROOT = "/content/CS5487-runtime-storage"`
+- `DOWNLOAD_RUNTIME_ARTIFACTS_ARCHIVE = True`
+- `GRID_SEARCH_JOBS = 2`
+- `RUN_EXPERIMENTS = False`
+- `COMBINE_AFTER_RUN = False`
+- `COMBINE_RUN_NAMES = ["batch_light", "batch_heavy"]`
+
+### Recommended run order
+
+1. Run Cells 1 to 4 to create the project folder, set up the artifacts folder, and install dependencies.
+2. Run Cell 5 to confirm the dataset shapes and the two official trial names.
+3. Run Cell 6 to audit the canonical output folders and see what is still missing.
+4. If you want to start a new batch, set `RUN_EXPERIMENTS = True` and then set `BATCH_PRESET`, `SELECTED_TRIAL_NAMES`, `SELECTED_MODEL_NAMES`, and `RUN_NAME` as needed.
+5. If you only want to rebuild canonical outputs from finished batch folders, keep `RUN_EXPERIMENTS = False`, set `COMBINE_AFTER_RUN = False`, and fill `COMBINE_RUN_NAMES` with the finished batch folder names.
+6. Run the final notebook cell. It will either execute the selected batch or combine finished batch folders, then print the output paths and the challenge-protocol reminder.
 
 The notebook imports the Python package instead of duplicating the experiment
 logic, so the protocol stays identical between local and Colab runs. The code
@@ -84,6 +103,8 @@ can be resumed and combined more safely there than in one long local process.
 ## Outputs
 
 Outputs are written under `artifacts/`:
+
+The `artifacts/` tree is created at runtime and is intentionally not tracked by Git. In Colab it appears either under the Google Drive folder you configured or under `/content/CS5487-runtime-storage/artifacts/`.
 
 - `artifacts/results/cv_leaderboard.csv`: best CV score for each trial/model/preprocessing combination
 - `artifacts/results/cv_results_detailed.csv`: full `GridSearchCV` rows for sensitivity analysis when the source batch was run with the updated pipeline
@@ -118,7 +139,7 @@ The runtime can also be configured from Python or notebook code:
 ```python
 from digits_project import configure_project, run_project_experiments
 
-configure_project(root_dir="/content/CS5487 Course Project Code", grid_search_jobs=2)
+configure_project(root_dir="/content/CS5487-Project", grid_search_jobs=2)
 results = run_project_experiments(selected_model_names=["knn_1", "linear_svm_ova"])
 ```
 
@@ -142,5 +163,17 @@ out of any public presentation material.
 
 ## Report scaffold
 
-Use `report/course_project_report.md` as the working draft for the written
-report. It already separates public results from the private challenge section.
+Use `report/course_project_report.md` as the canonical written report source.
+It separates public official-test results from the private challenge section.
+
+To build the submission assets from the canonical markdown files, run:
+
+```powershell
+.\.venv\Scripts\python.exe .\report\build_submission_assets.py
+```
+
+This generates:
+
+- `report/course_project_report.docx`
+- `report/course_project_report.pdf`
+- `report/course_project_presentation.pptx`
