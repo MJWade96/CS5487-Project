@@ -38,39 +38,68 @@ The primary workflow is now the notebook [digits_project_colab.ipynb](digits_pro
 
 Use the notebook when local CPU and memory are limited.
 
-### Get the project folder and artifacts folder
+The checked-in notebook may keep work-in-progress values from the last batch setup, so treat the first code cell as configuration that must be reviewed before every run.
 
-1. Open `digits_project_colab.ipynb` in Colab. You can keep the notebook in Drive or open it from GitHub.
-2. Keep `SYNC_PROJECT_FROM_GITHUB = True` and keep `PROJECT_ROOT = "/content/CS5487-Project"` unless you have a strong reason to change it.
-3. Run Cells 1 to 4 in order. The setup cells clone or fast-forward the repository into `/content/CS5487-Project` and install the Python dependencies.
-4. Open Colab's left-side Files panel and click refresh. You should now see the project folder `/content/CS5487-Project/`.
-5. Decide where you want the `artifacts/` folder to live:
-   - Persistent Google Drive: set `USE_GOOGLE_DRIVE = True` and keep `ARTIFACTS_ROOT = "/content/drive/MyDrive/CS5487 Course Project Code"`. The setup cell mounts Drive and creates or reuses `/content/drive/MyDrive/CS5487 Course Project Code/artifacts/`.
-   - Runtime-local only: keep `USE_GOOGLE_DRIVE = False`. The setup cell creates or reuses `/content/CS5487-runtime-storage/artifacts/`.
-6. If you keep artifacts in runtime-local storage, leave `EXPORT_RUNTIME_ARTIFACTS_ARCHIVE = True`. The final run cell exports `/content/exports/artifacts_snapshot*.zip`, which you should download before the Colab runtime resets.
+### Recommended starting configuration
 
-### Notebook defaults
+For a clean Colab run that syncs the repository from GitHub and stores artifacts outside the checkout, start from these values in code cell 1:
 
-The checked-in notebook currently defaults to:
+```python
+USE_GOOGLE_DRIVE = False
+SYNC_PROJECT_FROM_GITHUB = True
+GITHUB_REF = None  # or pin a commit hash for strict reproducibility
+WORKSPACE_ROOT = "/content"
+PROJECT_ROOT = "/content/CS5487-Project"
+RUNTIME_ARTIFACTS_ROOT = "/content/CS5487-runtime-storage"
+ARTIFACTS_ROOT = RUNTIME_ARTIFACTS_ROOT
+EXPORT_RUNTIME_ARTIFACTS_ARCHIVE = False
+DOWNLOAD_RUNTIME_ARTIFACTS_ARCHIVE = False
+GRID_SEARCH_JOBS = 1
+BATCH_PRESET = None
+RUN_EXPERIMENTS = False
+COMBINE_AFTER_RUN = False
+SELECTED_TRIAL_NAMES = None
+SELECTED_MODEL_NAMES = None
+RUN_NAME = None
+COMBINE_RUN_NAMES = ["batch_light", "batch_heavy"]
+```
 
-- `USE_GOOGLE_DRIVE = False`
-- `SYNC_PROJECT_FROM_GITHUB = True`
-- `PROJECT_ROOT = "/content/CS5487-Project"`
-- `RUNTIME_ARTIFACTS_ROOT = "/content/CS5487-runtime-storage"`
-- `DOWNLOAD_RUNTIME_ARTIFACTS_ARCHIVE = True`
-- `GRID_SEARCH_JOBS = 2`
-- `RUN_EXPERIMENTS = False`
-- `COMBINE_AFTER_RUN = False`
-- `COMBINE_RUN_NAMES = ["batch_light", "batch_heavy"]`
+If you want persistent Drive storage, set `USE_GOOGLE_DRIVE = True` and change `ARTIFACTS_ROOT` to a Drive folder such as `/content/drive/MyDrive/CS5487 Course Project Code`. If you are running on a notebook service that is not Google Colab, keep `DOWNLOAD_RUNTIME_ARTIFACTS_ARCHIVE = False` because the browser download hook is Colab-specific.
 
-### Recommended run order
+After code cells 1 to 3 finish, refresh the left-side Files panel. You should see the Git checkout under `/content/CS5487-Project/`, and the artifact location will be either `/content/CS5487-runtime-storage/artifacts/`, a Drive folder, or `PROJECT_ROOT/artifacts/` depending on `ARTIFACTS_ROOT`.
 
-1. Run Cells 1 to 4 to create the project folder, set up the artifacts folder, and install dependencies.
-2. Run Cell 5 to confirm the dataset shapes and the two official trial names.
-3. Run Cell 6 to audit the canonical output folders and see what is still missing.
-4. If you want to start a new batch, set `RUN_EXPERIMENTS = True` and then set `BATCH_PRESET`, `SELECTED_TRIAL_NAMES`, `SELECTED_MODEL_NAMES`, and `RUN_NAME` as needed.
-5. If you only want to rebuild canonical outputs from finished batch folders, keep `RUN_EXPERIMENTS = False`, set `COMBINE_AFTER_RUN = False`, and fill `COMBINE_RUN_NAMES` with the finished batch folder names.
-6. Run the final notebook cell. It will either execute the selected batch or combine finished batch folders, then print the output paths and the challenge-protocol reminder.
+### What `BATCH_PRESET` does
+
+`BATCH_PRESET` is the main batching control for reproducing the full experiment without shrinking the model or preprocessing search space. It is applied in code cell 4, where it overrides both `RUN_NAME` and `SELECTED_MODEL_NAMES`.
+
+- `light` writes to `artifacts/runs/batch_light/` and runs `knn_1`, `logistic_regression_ova`, and `linear_svm_ova`.
+- `heavy` writes to `artifacts/runs/batch_heavy/` and runs `rbf_svm_ova`, `random_forest`, and `mlp`.
+- `rbf_only`, `random_forest_only`, and `mlp_only` split the heavy batch further if the runtime is unstable.
+
+When `BATCH_PRESET` is not `None`, any manual values you put in `RUN_NAME` or `SELECTED_MODEL_NAMES` in code cell 1 will be overwritten in code cell 4.
+
+### Code-cell order
+
+The current checked-in notebook has 8 code cells. Run them in order.
+
+1. Code cell 1: review and set the configuration variables.
+2. Code cell 2: mount Drive if requested, sync the GitHub checkout, and link `artifacts/`.
+3. Code cell 3: install `requirements.txt`, add `src/` to `sys.path`, and clear cached `digits_project` imports.
+4. Code cell 4: import the project package, apply `BATCH_PRESET`, and print the active runtime configuration.
+5. Code cell 5: verify dataset shapes and official trial names.
+6. Code cell 6: audit canonical outputs, batch folders, saved models, figures, and case-example files.
+7. Code cell 7: start a new batch only when `RUN_EXPERIMENTS = True`.
+8. Code cell 8: combine finished batch folders when `RUN_EXPERIMENTS = False` or `COMBINE_AFTER_RUN = True`, then optionally export the runtime archive.
+
+Code cell 6 is only an audit. Before the combine stage, it is normal for it to report missing canonical outputs.
+
+### Reproduce the full results with batches
+
+1. Run the light batch. In code cell 1, keep the recommended starting configuration above, then set `BATCH_PRESET = "light"`, `RUN_EXPERIMENTS = True`, `COMBINE_AFTER_RUN = False`, `RUN_NAME = None`, `SELECTED_MODEL_NAMES = None`, and `COMBINE_RUN_NAMES = ["batch_light", "batch_heavy"]`. Run code cells 1 to 8 in order. Code cell 6 only audits the current state, so missing canonical outputs before combine are expected.
+2. Run the heavy batch. Change only `BATCH_PRESET = "heavy"` and rerun code cells 1 to 8. If this batch is still too slow, use one of `rbf_only`, `random_forest_only`, or `mlp_only`, then later put the actual finished run-folder names into `COMBINE_RUN_NAMES`.
+3. Combine the finished batches. Set `BATCH_PRESET = None`, `RUN_NAME = None`, `RUN_EXPERIMENTS = False`, `COMBINE_AFTER_RUN = False`, `SELECTED_TRIAL_NAMES = None`, `SELECTED_MODEL_NAMES = None`, and `COMBINE_RUN_NAMES = ["batch_light", "batch_heavy"]`, then rerun code cells 1 to 8. Code cell 8 is the cell that actually calls `combine_experiment_runs(...)`.
+4. Verify the canonical outputs. Rerun code cell 6. After a successful combine, the missing canonical summary files should disappear, and `Saved model files` plus `Case example files` should both be greater than `0`. `Detailed CV rows available` can still stay at `0` if the source batch folders do not contain `cv_results_detailed.csv`.
+5. Preserve artifacts before the runtime resets. If `ARTIFACTS_ROOT = RUNTIME_ARTIFACTS_ROOT`, keep the whole `/content/CS5487-runtime-storage/artifacts/` tree. If `EXPORT_RUNTIME_ARTIFACTS_ARCHIVE = True`, you can instead download `/content/exports/artifacts_snapshot*.zip`. If `ARTIFACTS_ROOT = None`, keep `/content/CS5487-Project/artifacts/`. Do not keep only the source checkout.
 
 The notebook imports the Python package instead of duplicating the experiment
 logic, so the protocol stays identical between local and Colab runs. The code
@@ -104,7 +133,7 @@ can be resumed and combined more safely there than in one long local process.
 
 Outputs are written under `artifacts/`:
 
-The `artifacts/` tree is created at runtime and is intentionally not tracked by Git. In Colab it appears either under the Google Drive folder you configured or under `/content/CS5487-runtime-storage/artifacts/`.
+The `artifacts/` tree is created at runtime and is intentionally not tracked by Git. If `ARTIFACTS_ROOT = None`, it stays under `PROJECT_ROOT/artifacts/`. If `ARTIFACTS_ROOT` points to `/content/CS5487-runtime-storage` or a Drive folder, `PROJECT_ROOT/artifacts` becomes a link to that external location.
 
 - `artifacts/results/cv_leaderboard.csv`: best CV score for each trial/model/preprocessing combination
 - `artifacts/results/cv_results_detailed.csv`: full `GridSearchCV` rows for sensitivity analysis when the source batch was run with the updated pipeline

@@ -16,7 +16,6 @@ artifacts from google drive/
 artifacts/
 
 # Keep local-only project docs and Colab exports out of Git.
-COLAB_RUN_GUIDE.md
 Project Guidelines.md
 Project Proposal.md
 plan.md
@@ -25,3 +24,4 @@ report/course_project_report.md
 report/course_project_report_draft.md
 report/presentation_constraints.md
 content/
+report/
