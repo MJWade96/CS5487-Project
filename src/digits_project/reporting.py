@@ -22,6 +22,10 @@ def ensure_output_dirs(paths: config.ProjectPaths | None = None) -> None:
         resolved_paths.predictions_dir,
         resolved_paths.per_class_dir,
         resolved_paths.case_examples_dir,
+        resolved_paths.analysis_dir,
+        resolved_paths.candidate_predictions_dir,
+        resolved_paths.candidate_per_class_dir,
+        resolved_paths.candidate_confusions_dir,
     ):
         path.mkdir(parents=True, exist_ok=True)
 

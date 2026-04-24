@@ -34,6 +34,10 @@ class RuntimeConfigTests(unittest.TestCase):
         self.assertEqual(project_config.PATHS.root_dir, ROOT_DIR.resolve())
         self.assertEqual(project_config.RUN_NAME, "batch_a")
         self.assertEqual(project_config.PATHS.run_dir, ROOT_DIR.resolve() / "artifacts" / "runs" / "batch_a")
+        self.assertEqual(
+            project_config.PATHS.analysis_dir,
+            ROOT_DIR.resolve() / "artifacts" / "runs" / "batch_a" / "results" / "analysis",
+        )
 
     def test_reset_project_config_restores_defaults(self) -> None:
         configure_project(root_dir=ROOT_DIR, grid_search_jobs=2, run_name="batch_a")
@@ -66,6 +70,9 @@ class RuntimeConfigTests(unittest.TestCase):
             self.assertTrue((temp_root / "artifacts" / "results" / "model_tradeoff_summary.csv").exists())
             self.assertTrue((temp_root / "artifacts" / "results" / "preprocessing_tradeoff_summary.csv").exists())
             self.assertTrue((temp_root / "artifacts" / "results" / "cv_results_detailed.csv").exists())
+            self.assertTrue((temp_root / "artifacts" / "results" / "analysis" / "candidate_per_class_long.csv").exists())
+            self.assertTrue((temp_root / "artifacts" / "results" / "analysis" / "cross_model_sample_comparison.csv").exists())
+            self.assertTrue((temp_root / "artifacts" / "results" / "analysis" / "case_examples_enriched.csv").exists())
 
             self.assertEqual(len(list((temp_root / "artifacts" / "results" / "predictions").glob("*.csv"))), 4)
             self.assertEqual(len(list((temp_root / "artifacts" / "results" / "per_class").glob("*.csv"))), 4)

@@ -146,6 +146,18 @@ The `artifacts/` tree is created at runtime and is intentionally not tracked by 
 - `artifacts/results/predictions/`: prediction tables for official test and challenge digits
 - `artifacts/results/per_class/`: per-class precision/recall/F1 tables
 - `artifacts/results/case_examples/`: representative official-test success/failure case tables for report writing
+- `artifacts/results/analysis/candidate_predictions/`: official-test/challenge predictions for every trial/model/preprocessing candidate
+- `artifacts/results/analysis/candidate_per_class/`: per-class precision/recall/F1 for every candidate prediction table
+- `artifacts/results/analysis/candidate_confusions/`: official-test confusion matrices (CSV + PNG) for every candidate preprocessing
+- `artifacts/results/analysis/candidate_per_class_long.csv`: long-format per-class table across all candidate preprocessings
+- `artifacts/results/analysis/candidate_per_class_delta_vs_selected.csv`: per-class deltas against each trial/model's selected preprocessing
+- `artifacts/results/analysis/candidate_per_class_delta_vs_raw.csv`: per-class deltas against raw pixels when raw is available for the model
+- `artifacts/results/analysis/candidate_confusion_pairs.csv`: confusion-pair counts and within-class error rates for each candidate preprocessing
+- `artifacts/results/analysis/candidate_confusion_pair_delta_vs_selected.csv`: confusion-pair deltas against the selected preprocessing
+- `artifacts/results/analysis/candidate_confusion_pair_stability.csv`: cross-trial stability summary for confusion pairs
+- `artifacts/results/analysis/cross_model_sample_comparison.csv`: per-sample comparison of predictions from all selected final models
+- `artifacts/results/analysis/case_examples_enriched.csv`: case-example rows enriched with across-model predictions for the same sample
+- `artifacts/results/analysis/easy_hard_digit_summary.csv`: aggregate per-digit accuracy ranking across selected final models
 - `artifacts/figures/`: confusion matrices, the summary bar chart, and the official-test accuracy/runtime trade-off plot
 - `artifacts/models/`: fitted trial-specific pipelines saved with `joblib`
 

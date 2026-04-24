@@ -165,6 +165,33 @@ class ExperimentResumeTests(unittest.TestCase):
             )
             self.assertEqual(prediction_frame["sample_index"].tolist(), [2, 3])
             self.assertTrue((batch_paths.case_examples_dir / "trial_1_resume_model_mnist_test_cases.csv").exists())
+            self.assertTrue(
+                (
+                    batch_paths.candidate_predictions_dir
+                    / "trial_1_resume_model_raw_mnist_test.csv"
+                ).exists()
+            )
+            self.assertTrue(
+                (
+                    batch_paths.candidate_predictions_dir
+                    / "trial_1_resume_model_zscore_mnist_test.csv"
+                ).exists()
+            )
+            self.assertTrue(
+                (
+                    batch_paths.candidate_per_class_dir
+                    / "trial_1_resume_model_raw_mnist_test.csv"
+                ).exists()
+            )
+            self.assertTrue(
+                (
+                    batch_paths.candidate_confusions_dir
+                    / "trial_1_resume_model_raw_mnist_test_confusion.csv"
+                ).exists()
+            )
+            self.assertTrue((batch_paths.analysis_dir / "candidate_per_class_long.csv").exists())
+            self.assertTrue((batch_paths.analysis_dir / "cross_model_sample_comparison.csv").exists())
+            self.assertTrue((batch_paths.analysis_dir / "case_examples_enriched.csv").exists())
 
             second_run_calls: list[str] = []
 

@@ -111,6 +111,39 @@ PREPROCESSING_TRADEOFF_COLUMNS = [
     "selected_trial_ratio",
 ]
 
+CANDIDATE_PER_CLASS_LONG_COLUMNS = [
+    "trial",
+    "model",
+    "preprocessing",
+    "digit",
+    "precision",
+    "recall",
+    "f1",
+    "support",
+]
+
+CANDIDATE_CONFUSION_PAIR_COLUMNS = [
+    "trial",
+    "model",
+    "preprocessing",
+    "true_label",
+    "pred_label",
+    "count",
+    "error_rate_within_true",
+]
+
+ANALYSIS_OUTPUT_FILES = {
+    "candidate_per_class_long": "candidate_per_class_long.csv",
+    "candidate_per_class_delta_vs_selected": "candidate_per_class_delta_vs_selected.csv",
+    "candidate_per_class_delta_vs_raw": "candidate_per_class_delta_vs_raw.csv",
+    "candidate_confusion_pairs": "candidate_confusion_pairs.csv",
+    "candidate_confusion_pair_delta_vs_selected": "candidate_confusion_pair_delta_vs_selected.csv",
+    "candidate_confusion_pair_stability": "candidate_confusion_pair_stability.csv",
+    "cross_model_sample_comparison": "cross_model_sample_comparison.csv",
+    "case_examples_enriched": "case_examples_enriched.csv",
+    "easy_hard_digit_summary": "easy_hard_digit_summary.csv",
+}
+
 
 @dataclass
 class ExperimentProgress:
@@ -255,8 +288,46 @@ def _prediction_path(paths: config.ProjectPaths, trial_name: str, model_name: st
     return paths.predictions_dir / f"{trial_name}_{model_name}_{dataset_label}.csv"
 
 
+def _candidate_prediction_path(
+    paths: config.ProjectPaths,
+    trial_name: str,
+    model_name: str,
+    preprocessor_name: str,
+    dataset_label: str,
+) -> Path:
+    return paths.candidate_predictions_dir / f"{trial_name}_{model_name}_{preprocessor_name}_{dataset_label}.csv"
+
+
 def _per_class_path(paths: config.ProjectPaths, trial_name: str, model_name: str, dataset_label: str) -> Path:
     return paths.per_class_dir / f"{trial_name}_{model_name}_{dataset_label}.csv"
+
+
+def _candidate_per_class_path(
+    paths: config.ProjectPaths,
+    trial_name: str,
+    model_name: str,
+    preprocessor_name: str,
+    dataset_label: str,
+) -> Path:
+    return paths.candidate_per_class_dir / f"{trial_name}_{model_name}_{preprocessor_name}_{dataset_label}.csv"
+
+
+def _candidate_confusion_matrix_path(
+    paths: config.ProjectPaths,
+    trial_name: str,
+    model_name: str,
+    preprocessor_name: str,
+) -> Path:
+    return paths.candidate_confusions_dir / f"{trial_name}_{model_name}_{preprocessor_name}_mnist_test_confusion.csv"
+
+
+def _candidate_confusion_figure_path(
+    paths: config.ProjectPaths,
+    trial_name: str,
+    model_name: str,
+    preprocessor_name: str,
+) -> Path:
+    return paths.candidate_confusions_dir / f"{trial_name}_{model_name}_{preprocessor_name}_mnist_test_confusion.png"
 
 
 def _case_examples_path(paths: config.ProjectPaths, trial_name: str, model_name: str) -> Path:
@@ -265,6 +336,10 @@ def _case_examples_path(paths: config.ProjectPaths, trial_name: str, model_name:
 
 def _confusion_figure_path(paths: config.ProjectPaths, trial_name: str, model_name: str) -> Path:
     return paths.figures_dir / f"{trial_name}_{model_name}_mnist_test_confusion.png"
+
+
+def _analysis_output_path(paths: config.ProjectPaths, output_key: str) -> Path:
+    return paths.analysis_dir / ANALYSIS_OUTPUT_FILES[output_key]
 
 
 def _load_optional_result_frame(path: Path, columns: list[str]) -> pd.DataFrame:
@@ -570,6 +645,65 @@ def _save_dataset_outputs(
     return normalized
 
 
+def _save_candidate_dataset_outputs(
+    paths: config.ProjectPaths,
+    trial_name: str,
+    model_name: str,
+    preprocessor_name: str,
+    dataset_label: str,
+    prediction_frame: pd.DataFrame,
+) -> pd.DataFrame:
+    normalized = _normalize_prediction_frame(prediction_frame)
+    save_prediction_table(
+        _candidate_prediction_path(paths, trial_name, model_name, preprocessor_name, dataset_label),
+        normalized,
+    )
+
+    y_true = normalized["y_true"]
+    y_pred = normalized["y_pred"]
+    per_class_frame = build_per_class_metrics_frame(y_true, y_pred)
+    save_dataframe(
+        per_class_frame,
+        _candidate_per_class_path(paths, trial_name, model_name, preprocessor_name, dataset_label),
+    )
+
+    if dataset_label == "mnist_test":
+        metrics = compute_classification_metrics(y_true, y_pred)
+        confusion_frame = pd.DataFrame(
+            metrics["confusion_matrix"],
+            index=config.CLASS_LABELS,
+            columns=config.CLASS_LABELS,
+        )
+        save_dataframe(
+            confusion_frame.reset_index(names="true_label"),
+            _candidate_confusion_matrix_path(paths, trial_name, model_name, preprocessor_name),
+        )
+        save_confusion_matrix_plot(
+            _candidate_confusion_figure_path(paths, trial_name, model_name, preprocessor_name),
+            metrics["confusion_matrix"],
+            title=f"{trial_name} - {model_name} ({preprocessor_name}) on official test set",
+        )
+
+    return normalized
+
+
+def _candidate_outputs_complete(
+    paths: config.ProjectPaths,
+    trial_name: str,
+    model_name: str,
+    preprocessor_name: str,
+) -> bool:
+    required_paths = [
+        _candidate_prediction_path(paths, trial_name, model_name, preprocessor_name, "mnist_test"),
+        _candidate_prediction_path(paths, trial_name, model_name, preprocessor_name, "challenge"),
+        _candidate_per_class_path(paths, trial_name, model_name, preprocessor_name, "mnist_test"),
+        _candidate_per_class_path(paths, trial_name, model_name, preprocessor_name, "challenge"),
+        _candidate_confusion_matrix_path(paths, trial_name, model_name, preprocessor_name),
+        _candidate_confusion_figure_path(paths, trial_name, model_name, preprocessor_name),
+    ]
+    return all(path.exists() for path in required_paths)
+
+
 def _safe_mode(values: pd.Series) -> object:
     modes = values.mode()
     if modes.empty:
@@ -662,6 +796,325 @@ def _build_preprocessing_tradeoff_frame(cv_frame: pd.DataFrame, final_frame: pd.
     return tradeoff_frame.reindex(columns=PREPROCESSING_TRADEOFF_COLUMNS)
 
 
+def _build_candidate_per_class_long_frame(cv_frame: pd.DataFrame, paths: config.ProjectPaths) -> pd.DataFrame:
+    rows: list[pd.DataFrame] = []
+    if cv_frame.empty:
+        return pd.DataFrame(columns=CANDIDATE_PER_CLASS_LONG_COLUMNS)
+
+    unique_rows = cv_frame[["trial", "model", "preprocessing"]].drop_duplicates()
+    for row in unique_rows.itertuples(index=False):
+        candidate_path = _candidate_per_class_path(paths, row.trial, row.model, row.preprocessing, "mnist_test")
+        if not candidate_path.exists():
+            continue
+        frame = pd.read_csv(candidate_path).copy()
+        frame.insert(0, "preprocessing", row.preprocessing)
+        frame.insert(0, "model", row.model)
+        frame.insert(0, "trial", row.trial)
+        rows.append(frame)
+
+    if not rows:
+        return pd.DataFrame(columns=CANDIDATE_PER_CLASS_LONG_COLUMNS)
+    return pd.concat(rows, ignore_index=True, sort=False).reindex(columns=CANDIDATE_PER_CLASS_LONG_COLUMNS)
+
+
+def _build_per_class_delta_frame(
+    long_frame: pd.DataFrame,
+    reference_column_name: str,
+    reference_values: pd.DataFrame,
+) -> pd.DataFrame:
+    if long_frame.empty or reference_values.empty:
+        return pd.DataFrame()
+
+    working = long_frame.merge(reference_values, on=["trial", "model"], how="inner")
+    reference_frame = long_frame.rename(
+        columns={
+            "preprocessing": reference_column_name,
+            "precision": "reference_precision",
+            "recall": "reference_recall",
+            "f1": "reference_f1",
+        }
+    )[
+        [
+            "trial",
+            "model",
+            "digit",
+            reference_column_name,
+            "reference_precision",
+            "reference_recall",
+            "reference_f1",
+        ]
+    ]
+
+    merged = working.merge(
+        reference_frame,
+        on=["trial", "model", "digit", reference_column_name],
+        how="left",
+    )
+    merged = merged.dropna(subset=["reference_recall"])
+    if merged.empty:
+        return pd.DataFrame()
+
+    merged["delta_precision"] = merged["precision"] - merged["reference_precision"]
+    merged["delta_recall"] = merged["recall"] - merged["reference_recall"]
+    merged["delta_f1"] = merged["f1"] - merged["reference_f1"]
+    return merged.sort_values(["trial", "model", "digit", "preprocessing"]).reset_index(drop=True)
+
+
+def _build_candidate_confusion_pair_frame(cv_frame: pd.DataFrame, paths: config.ProjectPaths) -> pd.DataFrame:
+    rows: list[dict[str, object]] = []
+    if cv_frame.empty:
+        return pd.DataFrame(columns=CANDIDATE_CONFUSION_PAIR_COLUMNS)
+
+    unique_rows = cv_frame[["trial", "model", "preprocessing"]].drop_duplicates()
+    for row in unique_rows.itertuples(index=False):
+        candidate_prediction_path = _candidate_prediction_path(
+            paths,
+            row.trial,
+            row.model,
+            row.preprocessing,
+            "mnist_test",
+        )
+        if not candidate_prediction_path.exists():
+            continue
+
+        frame = pd.read_csv(candidate_prediction_path)
+        if frame.empty:
+            continue
+        supports = frame.groupby("y_true").size().rename("support")
+        error_pairs = frame[frame["y_true"] != frame["y_pred"]].groupby(["y_true", "y_pred"]).size().rename("count")
+        if error_pairs.empty:
+            continue
+
+        error_frame = error_pairs.reset_index().merge(supports.reset_index(), on="y_true", how="left")
+        error_frame["error_rate_within_true"] = error_frame["count"] / error_frame["support"]
+        for error_row in error_frame.itertuples(index=False):
+            rows.append(
+                {
+                    "trial": row.trial,
+                    "model": row.model,
+                    "preprocessing": row.preprocessing,
+                    "true_label": int(error_row.y_true),
+                    "pred_label": int(error_row.y_pred),
+                    "count": int(error_row.count),
+                    "error_rate_within_true": float(error_row.error_rate_within_true),
+                }
+            )
+
+    if not rows:
+        return pd.DataFrame(columns=CANDIDATE_CONFUSION_PAIR_COLUMNS)
+    return pd.DataFrame(rows, columns=CANDIDATE_CONFUSION_PAIR_COLUMNS).sort_values(
+        ["trial", "model", "preprocessing", "count"],
+        ascending=[True, True, True, False],
+    ).reset_index(drop=True)
+
+
+def _build_confusion_pair_delta_vs_selected_frame(
+    confusion_pairs: pd.DataFrame,
+    final_frame: pd.DataFrame,
+) -> pd.DataFrame:
+    if confusion_pairs.empty or final_frame.empty:
+        return pd.DataFrame()
+
+    selected_map = final_frame[["trial", "model", "selected_preprocessing"]].rename(
+        columns={"selected_preprocessing": "reference_preprocessing"}
+    )
+    working = confusion_pairs.merge(selected_map, on=["trial", "model"], how="inner")
+    reference_frame = confusion_pairs.rename(
+        columns={
+            "preprocessing": "reference_preprocessing",
+            "count": "reference_count",
+            "error_rate_within_true": "reference_error_rate_within_true",
+        }
+    )[
+        [
+            "trial",
+            "model",
+            "true_label",
+            "pred_label",
+            "reference_preprocessing",
+            "reference_count",
+            "reference_error_rate_within_true",
+        ]
+    ]
+    merged = working.merge(
+        reference_frame,
+        on=["trial", "model", "true_label", "pred_label", "reference_preprocessing"],
+        how="left",
+    )
+    merged[["reference_count", "reference_error_rate_within_true"]] = merged[
+        ["reference_count", "reference_error_rate_within_true"]
+    ].fillna(0.0)
+    merged["delta_count_vs_selected"] = merged["count"] - merged["reference_count"]
+    merged["delta_error_rate_vs_selected"] = (
+        merged["error_rate_within_true"] - merged["reference_error_rate_within_true"]
+    )
+    return merged.sort_values(["trial", "model", "true_label", "pred_label", "preprocessing"]).reset_index(drop=True)
+
+
+def _build_confusion_pair_stability_frame(confusion_pairs: pd.DataFrame, cv_frame: pd.DataFrame) -> pd.DataFrame:
+    if confusion_pairs.empty or cv_frame.empty:
+        return pd.DataFrame()
+
+    model_trial_counts = cv_frame.groupby("model")["trial"].nunique().to_dict()
+    stability = (
+        confusion_pairs.groupby(["model", "preprocessing", "true_label", "pred_label"], as_index=False)
+        .agg(
+            trial_count_present=("trial", "nunique"),
+            mean_count=("count", "mean"),
+            min_count=("count", "min"),
+            max_count=("count", "max"),
+            mean_error_rate=("error_rate_within_true", "mean"),
+        )
+        .sort_values(["model", "preprocessing", "trial_count_present", "mean_count"], ascending=[True, True, False, False])
+        .reset_index(drop=True)
+    )
+    stability["trial_count_total"] = stability["model"].map(model_trial_counts)
+    stability["stability_ratio"] = stability["trial_count_present"] / stability["trial_count_total"]
+    return stability
+
+
+def _build_cross_model_sample_comparison_frame(final_frame: pd.DataFrame, paths: config.ProjectPaths) -> pd.DataFrame:
+    if final_frame.empty:
+        return pd.DataFrame()
+
+    comparison_frame: pd.DataFrame | None = None
+    for row in final_frame.sort_values(["trial", "model"]).itertuples(index=False):
+        prediction_path = _prediction_path(paths, row.trial, row.model, "mnist_test")
+        if not prediction_path.exists():
+            continue
+        frame = pd.read_csv(prediction_path)[["sample_index", "sample_index_1based", "y_true", "y_pred", "is_correct"]].copy()
+        frame.insert(0, "trial", row.trial)
+        frame = frame.rename(
+            columns={
+                "y_pred": f"pred_{row.model}",
+                "is_correct": f"correct_{row.model}",
+            }
+        )
+        frame[f"preprocessing_{row.model}"] = row.selected_preprocessing
+        if comparison_frame is None:
+            comparison_frame = frame
+            continue
+
+        comparison_frame = comparison_frame.merge(
+            frame.drop(columns=["y_true"]),
+            on=["trial", "sample_index", "sample_index_1based"],
+            how="outer",
+        )
+
+    if comparison_frame is None:
+        return pd.DataFrame()
+    return comparison_frame.sort_values(["trial", "sample_index"]).reset_index(drop=True)
+
+
+def _build_case_examples_enriched_frame(final_frame: pd.DataFrame, paths: config.ProjectPaths) -> pd.DataFrame:
+    if final_frame.empty:
+        return pd.DataFrame()
+
+    rows: list[pd.DataFrame] = []
+    for row in final_frame.itertuples(index=False):
+        case_path = _case_examples_path(paths, row.trial, row.model)
+        if not case_path.exists():
+            continue
+        case_frame = pd.read_csv(case_path).copy()
+        case_frame.insert(0, "selected_preprocessing", row.selected_preprocessing)
+        case_frame.insert(0, "case_model", row.model)
+        case_frame.insert(0, "trial", row.trial)
+        rows.append(case_frame)
+
+    if not rows:
+        return pd.DataFrame()
+    case_examples = pd.concat(rows, ignore_index=True, sort=False)
+    cross_model = _build_cross_model_sample_comparison_frame(final_frame, paths)
+    if cross_model.empty:
+        return case_examples
+    return case_examples.merge(cross_model, on=["trial", "sample_index", "sample_index_1based"], how="left")
+
+
+def _build_easy_hard_digit_summary_frame(final_frame: pd.DataFrame, paths: config.ProjectPaths) -> pd.DataFrame:
+    if final_frame.empty:
+        return pd.DataFrame()
+
+    rows: list[pd.DataFrame] = []
+    for row in final_frame.itertuples(index=False):
+        prediction_path = _prediction_path(paths, row.trial, row.model, "mnist_test")
+        if not prediction_path.exists():
+            continue
+        frame = pd.read_csv(prediction_path)[["y_true", "is_correct"]].copy()
+        frame.insert(0, "model", row.model)
+        frame.insert(0, "trial", row.trial)
+        rows.append(frame)
+
+    if not rows:
+        return pd.DataFrame()
+    combined = pd.concat(rows, ignore_index=True, sort=False)
+    summary = (
+        combined.groupby("y_true", as_index=False)
+        .agg(
+            mean_accuracy=("is_correct", "mean"),
+            std_accuracy=("is_correct", "std"),
+            sample_count=("is_correct", "size"),
+        )
+        .rename(columns={"y_true": "digit"})
+        .sort_values("mean_accuracy", ascending=False)
+        .reset_index(drop=True)
+    )
+    return summary
+
+
+def _save_analysis_tables(cv_frame: pd.DataFrame, final_frame: pd.DataFrame, paths: config.ProjectPaths) -> None:
+    candidate_per_class_long = _build_candidate_per_class_long_frame(cv_frame, paths)
+    save_dataframe(candidate_per_class_long, _analysis_output_path(paths, "candidate_per_class_long"))
+
+    selected_reference = final_frame[["trial", "model", "selected_preprocessing"]].rename(
+        columns={"selected_preprocessing": "reference_preprocessing"}
+    )
+    per_class_delta_vs_selected = _build_per_class_delta_frame(
+        candidate_per_class_long,
+        reference_column_name="reference_preprocessing",
+        reference_values=selected_reference,
+    )
+    save_dataframe(
+        per_class_delta_vs_selected,
+        _analysis_output_path(paths, "candidate_per_class_delta_vs_selected"),
+    )
+
+    raw_reference = (
+        candidate_per_class_long[candidate_per_class_long["preprocessing"] == "raw"][["trial", "model"]]
+        .drop_duplicates()
+        .assign(reference_preprocessing="raw")
+    )
+    per_class_delta_vs_raw = _build_per_class_delta_frame(
+        candidate_per_class_long,
+        reference_column_name="reference_preprocessing",
+        reference_values=raw_reference,
+    )
+    save_dataframe(per_class_delta_vs_raw, _analysis_output_path(paths, "candidate_per_class_delta_vs_raw"))
+
+    candidate_confusion_pairs = _build_candidate_confusion_pair_frame(cv_frame, paths)
+    save_dataframe(candidate_confusion_pairs, _analysis_output_path(paths, "candidate_confusion_pairs"))
+
+    confusion_pair_delta_vs_selected = _build_confusion_pair_delta_vs_selected_frame(
+        candidate_confusion_pairs,
+        final_frame,
+    )
+    save_dataframe(
+        confusion_pair_delta_vs_selected,
+        _analysis_output_path(paths, "candidate_confusion_pair_delta_vs_selected"),
+    )
+
+    confusion_pair_stability = _build_confusion_pair_stability_frame(candidate_confusion_pairs, cv_frame)
+    save_dataframe(confusion_pair_stability, _analysis_output_path(paths, "candidate_confusion_pair_stability"))
+
+    cross_model_comparison = _build_cross_model_sample_comparison_frame(final_frame, paths)
+    save_dataframe(cross_model_comparison, _analysis_output_path(paths, "cross_model_sample_comparison"))
+
+    case_examples_enriched = _build_case_examples_enriched_frame(final_frame, paths)
+    save_dataframe(case_examples_enriched, _analysis_output_path(paths, "case_examples_enriched"))
+
+    easy_hard_summary = _build_easy_hard_digit_summary_frame(final_frame, paths)
+    save_dataframe(easy_hard_summary, _analysis_output_path(paths, "easy_hard_digit_summary"))
+
+
 def _save_result_tables(
     cv_frame: pd.DataFrame,
     cv_detailed_frame: pd.DataFrame,
@@ -701,6 +1154,8 @@ def _save_result_tables(
     if extra_metadata:
         protocol_payload["artifact_metadata"] = extra_metadata
     save_json(protocol_payload, paths.results_dir / "challenge_protocol.json")
+
+    _save_analysis_tables(cv_frame, final_frame, paths)
 
     return model_tradeoff_frame, preprocessing_tradeoff_frame
 
@@ -758,6 +1213,7 @@ def _clear_canonical_artifact_dirs(paths: config.ProjectPaths) -> None:
         paths.predictions_dir,
         paths.per_class_dir,
         paths.case_examples_dir,
+        paths.analysis_dir,
         paths.figures_dir,
     ):
         clear_directory_contents(path)
@@ -835,6 +1291,33 @@ def run_project_experiments(
                         ),
                         flush=True,
                     )
+                    if not _candidate_outputs_complete(config.PATHS, trial.name, model_spec.name, preprocessor_name):
+                        print(
+                            f"{progress_prefix} candidate outputs missing for {preprocessor_name}, regenerating from checkpoint.",
+                            flush=True,
+                        )
+                        mnist_predictions = outcome.best_estimator.predict(X_test)
+                        challenge_predictions = outcome.best_estimator.predict(dataset.challenge_X)
+                        _save_candidate_dataset_outputs(
+                            paths=config.PATHS,
+                            trial_name=trial.name,
+                            model_name=model_spec.name,
+                            preprocessor_name=preprocessor_name,
+                            dataset_label="mnist_test",
+                            prediction_frame=_build_prediction_frame(trial.test_indices, y_test, mnist_predictions),
+                        )
+                        _save_candidate_dataset_outputs(
+                            paths=config.PATHS,
+                            trial_name=trial.name,
+                            model_name=model_spec.name,
+                            preprocessor_name=preprocessor_name,
+                            dataset_label="challenge",
+                            prediction_frame=_build_prediction_frame(
+                                range(len(dataset.challenge_y)),
+                                dataset.challenge_y,
+                                challenge_predictions,
+                            ),
+                        )
                     if winning_outcome is None or outcome.best_cv_accuracy > winning_outcome.best_cv_accuracy:
                         winning_outcome = outcome
                     continue
@@ -873,6 +1356,29 @@ def run_project_experiments(
                     flush=True,
                 )
                 print(f"{progress_prefix} saved resume checkpoint: {checkpoint_path.name}", flush=True)
+
+                mnist_predictions = outcome.best_estimator.predict(X_test)
+                challenge_predictions = outcome.best_estimator.predict(dataset.challenge_X)
+                _save_candidate_dataset_outputs(
+                    paths=config.PATHS,
+                    trial_name=trial.name,
+                    model_name=model_spec.name,
+                    preprocessor_name=preprocessor_name,
+                    dataset_label="mnist_test",
+                    prediction_frame=_build_prediction_frame(trial.test_indices, y_test, mnist_predictions),
+                )
+                _save_candidate_dataset_outputs(
+                    paths=config.PATHS,
+                    trial_name=trial.name,
+                    model_name=model_spec.name,
+                    preprocessor_name=preprocessor_name,
+                    dataset_label="challenge",
+                    prediction_frame=_build_prediction_frame(
+                        range(len(dataset.challenge_y)),
+                        dataset.challenge_y,
+                        challenge_predictions,
+                    ),
+                )
 
                 if winning_outcome is None or outcome.best_cv_accuracy > winning_outcome.best_cv_accuracy:
                     winning_outcome = outcome
@@ -967,14 +1473,15 @@ def combine_experiment_runs(
 
     cv_frames: list[pd.DataFrame] = []
     cv_detailed_frames: list[pd.DataFrame] = []
-    run_results: list[tuple[str, config.ProjectPaths, pd.DataFrame]] = []
+    run_results: list[tuple[str, config.ProjectPaths, pd.DataFrame, pd.DataFrame]] = []
     missing_detailed_cv_runs: list[str] = []
 
     for run_name in selected_run_names:
         batch_paths = config.ProjectPaths(resolved_root, run_name=run_name)
-        cv_frames.append(_load_required_result_frame(batch_paths.results_dir / "cv_leaderboard.csv"))
+        batch_cv_frame = _load_required_result_frame(batch_paths.results_dir / "cv_leaderboard.csv")
+        cv_frames.append(batch_cv_frame)
         batch_final_frame = _load_required_result_frame(batch_paths.results_dir / "final_selected_models.csv")
-        run_results.append((run_name, batch_paths, batch_final_frame))
+        run_results.append((run_name, batch_paths, batch_final_frame, batch_cv_frame))
 
         detailed_path = batch_paths.results_dir / "cv_results_detailed.csv"
         if detailed_path.exists():
@@ -984,7 +1491,7 @@ def combine_experiment_runs(
 
     cv_frame = _sort_cv_frame(_merge_result_frames(cv_frames, ["trial", "model", "preprocessing"]))
     final_frame = _sort_final_frame(
-        _merge_result_frames([batch_final_frame for _, _, batch_final_frame in run_results], ["trial", "model"])
+        _merge_result_frames([batch_final_frame for _, _, batch_final_frame, _ in run_results], ["trial", "model"])
     )
     if cv_detailed_frames:
         cv_detailed_frame = _sort_cv_detailed_frame(_merge_result_frames(cv_detailed_frames, CV_DETAILED_KEY_COLUMNS))
@@ -994,7 +1501,7 @@ def combine_experiment_runs(
     staged_artifacts: list[tuple[str, str, Path, dict[str, pd.DataFrame]]] = []
     trial_lookup: dict[str, TrialSplit] | None = None
 
-    for _, batch_paths, batch_final_frame in run_results:
+    for _, batch_paths, batch_final_frame, _ in run_results:
         for row in batch_final_frame.itertuples(index=False):
             source_model_path = _selected_model_path(batch_paths, row.trial, row.model)
             if not source_model_path.exists():
@@ -1032,6 +1539,79 @@ def combine_experiment_runs(
                 dataset_label=dataset_label,
                 prediction_frame=normalized_prediction_frame,
             )
+
+    for _, batch_paths, _, batch_cv_frame in run_results:
+        for row in batch_cv_frame[["trial", "model", "preprocessing"]].drop_duplicates().itertuples(index=False):
+            for dataset_label in ("mnist_test", "challenge"):
+                source_prediction_path = _candidate_prediction_path(
+                    batch_paths,
+                    row.trial,
+                    row.model,
+                    row.preprocessing,
+                    dataset_label,
+                )
+                source_per_class_path = _candidate_per_class_path(
+                    batch_paths,
+                    row.trial,
+                    row.model,
+                    row.preprocessing,
+                    dataset_label,
+                )
+                if source_prediction_path.exists():
+                    shutil.copy2(
+                        source_prediction_path,
+                        _candidate_prediction_path(
+                            combined_paths,
+                            row.trial,
+                            row.model,
+                            row.preprocessing,
+                            dataset_label,
+                        ),
+                    )
+                if source_per_class_path.exists():
+                    shutil.copy2(
+                        source_per_class_path,
+                        _candidate_per_class_path(
+                            combined_paths,
+                            row.trial,
+                            row.model,
+                            row.preprocessing,
+                            dataset_label,
+                        ),
+                    )
+
+            source_confusion_csv = _candidate_confusion_matrix_path(
+                batch_paths,
+                row.trial,
+                row.model,
+                row.preprocessing,
+            )
+            source_confusion_png = _candidate_confusion_figure_path(
+                batch_paths,
+                row.trial,
+                row.model,
+                row.preprocessing,
+            )
+            if source_confusion_csv.exists():
+                shutil.copy2(
+                    source_confusion_csv,
+                    _candidate_confusion_matrix_path(
+                        combined_paths,
+                        row.trial,
+                        row.model,
+                        row.preprocessing,
+                    ),
+                )
+            if source_confusion_png.exists():
+                shutil.copy2(
+                    source_confusion_png,
+                    _candidate_confusion_figure_path(
+                        combined_paths,
+                        row.trial,
+                        row.model,
+                        row.preprocessing,
+                    ),
+                )
 
     summary_frame, email_frame = _build_summary_frames(final_frame)
     extra_metadata: dict[str, object] | None = None
