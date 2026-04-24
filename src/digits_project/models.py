@@ -100,39 +100,35 @@ MODEL_SPECS: tuple[ModelSpec, ...] = (
     ModelSpec(
         name="knn_1",
         estimator_builder=_build_knn,
-        param_grid={
-            "classifier__n_neighbors": [1, 3, 5, 7, 9],
-            "classifier__weights": ["uniform", "distance"],
-            "classifier__p": [1, 2],
-        },
-        preprocessors=("zscore", "pca_100"),
+        param_grid={},
+        preprocessors=("raw", "minmax", "zscore", "pca_50", "pca_100", "pca_150"),
     ),
     ModelSpec(
         name="logistic_regression_ova",
         estimator_builder=_build_logistic_regression,
         param_grid={
-            "classifier__estimator__C": [0.1, 1.0, 5.0, 10.0],
+            "classifier__estimator__C": [1e-4, 1e-3, 1e-2, 0.1, 1.0, 10.0, 100.0, 1000.0, 1e4],
             "classifier__estimator__penalty": ["l2"],
         },
-        preprocessors=("zscore", "pca_100"),
+        preprocessors=("raw", "minmax", "zscore", "pca_50", "pca_100", "pca_150"),
     ),
     ModelSpec(
         name="linear_svm_ova",
         estimator_builder=_build_linear_svm,
         param_grid={
-            "classifier__estimator__C": [0.01, 0.1, 1.0, 5.0, 10.0],
+            "classifier__estimator__C": [1e-4, 1e-3, 1e-2, 0.1, 1.0, 10.0, 100.0, 1000.0, 1e4],
             "classifier__estimator__class_weight": [None, "balanced"],
         },
-        preprocessors=("zscore", "pca_100"),
+        preprocessors=("raw", "zscore", "pca_50", "pca_100", "pca_150"),
     ),
     ModelSpec(
         name="rbf_svm_ova",
         estimator_builder=_build_rbf_svm,
         param_grid={
-            "classifier__estimator__C": [1.0, 5.0, 10.0, 20.0, 50.0],
-            "classifier__estimator__gamma": ["scale", 0.0005, 0.001, 0.005, 0.01],
+            "classifier__estimator__C": [0.1, 1.0, 10.0, 100.0],
+            "classifier__estimator__gamma": ["scale", 1e-4, 3e-4, 1e-3, 3e-3, 1e-2],
         },
-        preprocessors=("zscore", "pca_100"),
+        preprocessors=("raw", "zscore", "pca_50", "pca_100", "pca_150"),
     ),
     ModelSpec(
         name="random_forest",
@@ -143,7 +139,7 @@ MODEL_SPECS: tuple[ModelSpec, ...] = (
             "classifier__max_features": ["sqrt", 0.5],
             "classifier__min_samples_leaf": [1, 2],
         },
-        preprocessors=("raw", "pca_100"),
+        preprocessors=("raw", "pca_50", "pca_100"),
     ),
     ModelSpec(
         name="mlp",
@@ -153,7 +149,7 @@ MODEL_SPECS: tuple[ModelSpec, ...] = (
             "classifier__alpha": [0.0001, 0.0005, 0.001],
             "classifier__learning_rate_init": [0.0005, 0.001, 0.005],
         },
-        preprocessors=("minmax", "zscore", "pca_100"),
+        preprocessors=("minmax", "zscore", "pca_50", "pca_100", "pca_150"),
     ),
 )
 
