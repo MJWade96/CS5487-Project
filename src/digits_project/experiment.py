@@ -1529,6 +1529,8 @@ def combine_experiment_runs(
             staged_artifacts.append((row.trial, row.model, source_model_path, normalized_prediction_frames))
 
     _clear_canonical_artifact_dirs(combined_paths)
+    # Recreate all canonical output folders after clearing to keep copy destinations valid.
+    ensure_output_dirs(combined_paths)
     for trial_name, model_name, source_model_path, normalized_prediction_frames in staged_artifacts:
         shutil.copy2(source_model_path, _selected_model_path(combined_paths, trial_name, model_name))
         for dataset_label, normalized_prediction_frame in normalized_prediction_frames.items():

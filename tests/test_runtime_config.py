@@ -101,6 +101,34 @@ class RuntimeConfigTests(unittest.TestCase):
 
             self.assertTrue(sentinel_path.exists())
 
+    def test_combine_experiment_runs_recreates_candidate_analysis_dirs_before_copy(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            self._write_batch_outputs(temp_root, "batch_light", "trial_1", "knn_1", "raw", 0.9135, 0.66)
+
+            batch_paths = project_config.ProjectPaths(temp_root, run_name="batch_light")
+            batch_paths.candidate_predictions_dir.mkdir(parents=True, exist_ok=True)
+            candidate_prediction_name = "trial_1_knn_1_raw_mnist_test.csv"
+            candidate_prediction_path = batch_paths.candidate_predictions_dir / candidate_prediction_name
+            pd.DataFrame(
+                [
+                    {
+                        "sample_index": 10,
+                        "sample_index_1based": 11,
+                        "y_true": 0,
+                        "y_pred": 0,
+                        "is_correct": True,
+                    }
+                ]
+            ).to_csv(candidate_prediction_path, index=False)
+
+            combine_experiment_runs(root_dir=temp_root, run_names=["batch_light"])
+
+            combined_candidate_path = (
+                project_config.ProjectPaths(temp_root).candidate_predictions_dir / candidate_prediction_name
+            )
+            self.assertTrue(combined_candidate_path.exists())
+
     def _write_batch_outputs(
         self,
         root_dir: Path,

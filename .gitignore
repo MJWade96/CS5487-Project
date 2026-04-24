@@ -9,6 +9,7 @@ __pycache__/
 .learnings/
 .worktrees/
 .vscode/
+.github/
 dist/
 node_modules/
 artifacts from google drive/
