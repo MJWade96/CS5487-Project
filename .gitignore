@@ -18,6 +18,7 @@ artifacts/
 # Keep local-only project docs and Colab exports out of Git.
 Project Guidelines.md
 Project Proposal.md
+experiment_contents.md
 plan.md
 report/course_project_presentation.md
 report/course_project_report.md

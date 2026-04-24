@@ -56,8 +56,9 @@ def _build_logistic_regression() -> BaseEstimator:
     return OneVsRestClassifier(
         LogisticRegression(
             solver="liblinear",
-            max_iter=2000,
-        )
+            max_iter=1000,
+        ),
+        n_jobs=-1,
     )
 
 
@@ -104,16 +105,16 @@ MODEL_SPECS: tuple[ModelSpec, ...] = (
             "classifier__weights": ["uniform", "distance"],
             "classifier__p": [1, 2],
         },
-        preprocessors=("raw", "zscore", "pca_50", "pca_100", "pca_150"),
+        preprocessors=("zscore", "pca_100"),
     ),
     ModelSpec(
         name="logistic_regression_ova",
         estimator_builder=_build_logistic_regression,
         param_grid={
-            "classifier__estimator__C": [0.01, 0.1, 1.0, 5.0, 10.0, 20.0],
-            "classifier__estimator__penalty": ["l1", "l2"],
+            "classifier__estimator__C": [0.1, 1.0, 5.0, 10.0],
+            "classifier__estimator__penalty": ["l2"],
         },
-        preprocessors=("raw", "zscore", "pca_50", "pca_100", "pca_150"),
+        preprocessors=("zscore", "pca_100"),
     ),
     ModelSpec(
         name="linear_svm_ova",
@@ -122,7 +123,7 @@ MODEL_SPECS: tuple[ModelSpec, ...] = (
             "classifier__estimator__C": [0.01, 0.1, 1.0, 5.0, 10.0],
             "classifier__estimator__class_weight": [None, "balanced"],
         },
-        preprocessors=("zscore", "pca_50", "pca_100", "pca_150"),
+        preprocessors=("zscore", "pca_100"),
     ),
     ModelSpec(
         name="rbf_svm_ova",
@@ -131,7 +132,7 @@ MODEL_SPECS: tuple[ModelSpec, ...] = (
             "classifier__estimator__C": [1.0, 5.0, 10.0, 20.0, 50.0],
             "classifier__estimator__gamma": ["scale", 0.0005, 0.001, 0.005, 0.01],
         },
-        preprocessors=("zscore", "pca_50", "pca_100", "pca_150"),
+        preprocessors=("zscore", "pca_100"),
     ),
     ModelSpec(
         name="random_forest",
@@ -142,7 +143,7 @@ MODEL_SPECS: tuple[ModelSpec, ...] = (
             "classifier__max_features": ["sqrt", 0.5],
             "classifier__min_samples_leaf": [1, 2],
         },
-        preprocessors=("raw", "pca_50", "pca_100", "pca_150"),
+        preprocessors=("raw", "pca_100"),
     ),
     ModelSpec(
         name="mlp",
@@ -152,7 +153,7 @@ MODEL_SPECS: tuple[ModelSpec, ...] = (
             "classifier__alpha": [0.0001, 0.0005, 0.001],
             "classifier__learning_rate_init": [0.0005, 0.001, 0.005],
         },
-        preprocessors=("minmax", "zscore", "pca_50", "pca_100", "pca_150"),
+        preprocessors=("minmax", "zscore", "pca_100"),
     ),
 )
 
